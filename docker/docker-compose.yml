@@ -1,0 +1,37 @@
+services:
+  backend:
+    container_name: billbuddy-backend
+    build:
+      context: ../apps/backend
+      dockerfile: Dockerfile
+    image: billbuddy-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - billbuddy-net
+
+  db:
+    image: postgres:15-alpine
+    container_name: billbuddy-db
+    env_file:
+      - ../.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billbuddy_user -d billbuddy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - billbuddy-net
+
+networks:
+  billbuddy-net:
+
+volumes:
+  postgres_data:
