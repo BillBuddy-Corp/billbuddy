@@ -1,0 +1,21 @@
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
