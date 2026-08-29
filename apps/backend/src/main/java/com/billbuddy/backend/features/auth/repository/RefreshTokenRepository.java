@@ -51,4 +51,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 """)
     List<RefreshToken> findActiveSessions(Long userId);
 
+    @Modifying
+    @Query("delete from RefreshToken rt where rt.expiresAt < CURRENT_TIMESTAMP")
+    int deleteExpiredTokens();
+
+
 }

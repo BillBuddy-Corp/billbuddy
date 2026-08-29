@@ -24,19 +24,26 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
                         // PUBLIC AUTH ENDPOINTS
                         .requestMatchers(
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refreshtoken",
-                                "/api/v1/auth/logout",
                                 "/actuator/health"
                         ).permitAll()
 
                         // PROTECTED AUTH ENDPOINTS
                         .requestMatchers(
                                 "/api/v1/auth/logout-all",
-                                "/api/v1/auth/sessions"
+                                "/api/v1/auth/sessions",
+                                "/api/v1/auth/logout"
                         ).authenticated()
 
                         // EVERYTHING ELSE
@@ -46,9 +53,9 @@ public class SecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
-                )
+                );
 
-                .httpBasic(Customizer.withDefaults());
+//                .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }

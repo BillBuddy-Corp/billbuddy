@@ -13,6 +13,7 @@ import java.security.Key;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
+import java.util.UUID;
 
 
 @Component
@@ -36,6 +37,7 @@ public class JwtService {
 
     public String generateAccessToken(Long userId, String email) {
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
                 .setSubject(userId.toString())
                 .claim("email", email)
                 .setIssuedAt(new Date())
@@ -48,6 +50,7 @@ public class JwtService {
 
     public String generateRefreshToken(Long userId) {
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
                 .setSubject(userId.toString())
                 .setIssuedAt(new Date())
                 .setExpiration(toDate(LocalDateTime.now().plusDays(refreshTokenExpiryDays)))
