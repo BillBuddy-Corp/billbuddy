@@ -62,4 +62,94 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(GroupNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleGroupNotFound(GroupNotFoundException ex) {
+        return Map.of(
+                "error", "GROUP_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(NotGroupMemberException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleNotGroupMember(NotGroupMemberException ex) {
+        return Map.of(
+                "error", "NOT_GROUP_MEMBER",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(NotGroupAdminException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleNotGroupAdmin(NotGroupAdminException ex) {
+        return Map.of(
+                "error", "NOT_GROUP_ADMIN",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(MemberNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleMemberNotFound(MemberNotFoundException ex) {
+        return Map.of(
+                "error", "MEMBER_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(LastAdminException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> handleLastAdmin(LastAdminException ex) {
+        return Map.of(
+                "error", "LAST_ADMIN",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InviteNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleInviteNotFound(InviteNotFoundException ex) {
+        return Map.of(
+                "error", "INVITE_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidInviteException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidInvite(InvalidInviteException ex) {
+        return Map.of(
+                "error", "INVALID_INVITE",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(AlreadyGroupMemberException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> handleAlreadyGroupMember(AlreadyGroupMemberException ex) {
+        return Map.of(
+                "error", "ALREADY_GROUP_MEMBER",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidCurrencyException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidCurrency(InvalidCurrencyException ex) {
+        return Map.of(
+                "error", "INVALID_CURRENCY",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }
