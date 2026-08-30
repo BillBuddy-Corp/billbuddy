@@ -46,6 +46,12 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout"
                         ).authenticated()
 
+                        // PROTECTED GROUP ENDPOINTS
+                        .requestMatchers(
+                                "/api/v1/groups/**",
+                                "/api/v1/invites/**"
+                        ).authenticated()
+
                         // EVERYTHING ELSE
                         .anyRequest().authenticated()
                 )

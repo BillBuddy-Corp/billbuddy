@@ -21,15 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Full-stack auth walkthrough against a real (H2) database, exercising the actual
- * HTTP layer, security filter chain, service logic and persistence together.
- *
- * Runs against H2 rather than Postgres because this environment has no Docker,
- * so Testcontainers isn't available. Swap the datasource in
- * src/test/resources/application-test.yml for a Testcontainers Postgres setup
- * if you want DB-parity guarantees, e.g. in a CI environment with Docker.
- */
+// Runs against H2, not Postgres — this environment has no Docker for Testcontainers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
