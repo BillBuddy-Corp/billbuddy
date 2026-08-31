@@ -30,7 +30,7 @@ public class UpdateExpenseRequest {
 
     private String category;
 
-    private String receiptUrl;
+    private Long receiptFileId;
 
     @NotNull(message = "splitType is required")
     private SplitType splitType;

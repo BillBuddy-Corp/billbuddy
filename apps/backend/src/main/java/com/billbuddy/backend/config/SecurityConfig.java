@@ -62,6 +62,12 @@ public class SecurityConfig {
                                 "/api/v1/settlements/**"
                         ).authenticated()
 
+                        // PROTECTED STORAGE / USER PROFILE ENDPOINTS
+                        .requestMatchers(
+                                "/api/v1/files/**",
+                                "/api/v1/users/**"
+                        ).authenticated()
+
                         // EVERYTHING ELSE
                         .anyRequest().authenticated()
                 )

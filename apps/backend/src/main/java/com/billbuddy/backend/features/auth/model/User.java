@@ -1,5 +1,6 @@
 package com.billbuddy.backend.features.auth.model;
 
+import com.billbuddy.backend.features.storage.model.StoredFile;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -31,8 +32,9 @@ public class User {
     @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(name = "profile_pic_url")
-    private String profilePicUrl;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_pic_file_id")
+    private StoredFile profilePicFile;
 
     @Column(name = "fcm_token")
     private String fcmToken;
@@ -95,6 +97,12 @@ public class User {
                 .authProvider(AuthProvider.EMAIL)
                 .defaultCurrency("INR")
                 .build();
+    }
+
+    public void updateProfile(String fullName, StoredFile profilePicFile, String defaultCurrency) {
+        this.fullName = fullName;
+        this.profilePicFile = profilePicFile;
+        this.defaultCurrency = defaultCurrency;
     }
 
 }

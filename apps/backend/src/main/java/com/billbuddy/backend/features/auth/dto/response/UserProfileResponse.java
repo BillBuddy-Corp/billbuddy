@@ -1,0 +1,19 @@
+package com.billbuddy.backend.features.auth.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+import java.time.LocalDateTime;
+
+@Getter
+@AllArgsConstructor
+public class UserProfileResponse {
+
+    private Long id;
+    private String fullName;
+    private String email;
+    private String mobileNumber;
+    private String profilePicUrl;
+    private String defaultCurrency;
+    private LocalDateTime createdAt;
+}

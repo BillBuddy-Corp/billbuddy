@@ -232,4 +232,34 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(StoredFileNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleStoredFileNotFound(StoredFileNotFoundException ex) {
+        return Map.of(
+                "error", "STORED_FILE_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidFileException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidFile(InvalidFileException ex) {
+        return Map.of(
+                "error", "INVALID_FILE",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(NotFileOwnerException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleNotFileOwner(NotFileOwnerException ex) {
+        return Map.of(
+                "error", "NOT_FILE_OWNER",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }

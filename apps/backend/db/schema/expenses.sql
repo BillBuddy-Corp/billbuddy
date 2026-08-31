@@ -8,7 +8,7 @@ CREATE TABLE "expenses" (
   "converted_amount" decimal(10,2) NOT NULL,
   "exchange_rate" decimal(10,6) NOT NULL DEFAULT 1,
   "category" varchar,
-  "receipt_url" varchar,
+  "receipt_file_id" bigint,
   "split_type" varchar NOT NULL,
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
@@ -17,3 +17,4 @@ CREATE TABLE "expenses" (
 
 ALTER TABLE "expenses" ADD FOREIGN KEY ("group_id") REFERENCES "groups" ("id");
 ALTER TABLE "expenses" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("id");
+ALTER TABLE "expenses" ADD FOREIGN KEY ("receipt_file_id") REFERENCES "files" ("id");
