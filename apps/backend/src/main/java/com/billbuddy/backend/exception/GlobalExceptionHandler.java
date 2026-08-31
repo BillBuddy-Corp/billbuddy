@@ -192,4 +192,44 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(SettlementNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleSettlementNotFound(SettlementNotFoundException ex) {
+        return Map.of(
+                "error", "SETTLEMENT_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidSettlementException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidSettlement(InvalidSettlementException ex) {
+        return Map.of(
+                "error", "INVALID_SETTLEMENT",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidSettlementParticipantException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidSettlementParticipant(InvalidSettlementParticipantException ex) {
+        return Map.of(
+                "error", "INVALID_SETTLEMENT_PARTICIPANT",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(NotSettlementOwnerException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleNotSettlementOwner(NotSettlementOwnerException ex) {
+        return Map.of(
+                "error", "NOT_SETTLEMENT_OWNER",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }

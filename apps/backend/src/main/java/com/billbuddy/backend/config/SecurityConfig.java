@@ -57,6 +57,11 @@ public class SecurityConfig {
                                 "/api/v1/expenses/**"
                         ).authenticated()
 
+                        // PROTECTED SETTLEMENT ENDPOINTS
+                        .requestMatchers(
+                                "/api/v1/settlements/**"
+                        ).authenticated()
+
                         // EVERYTHING ELSE
                         .anyRequest().authenticated()
                 )

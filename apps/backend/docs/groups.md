@@ -4,7 +4,7 @@ Base path: `/api/v1`. All endpoints below require **Auth required** (`Authorizat
 
 Interactive docs (always in sync with the code): `/swagger-ui.html` once the backend is running.
 
-Balances (`GET /groups/{id}/balances[/simplified]`) are not implemented yet — deferred until Expenses/Settlements exist.
+Balances (`GET /groups/{id}/balances[/simplified]`) are documented in `settlements.md`, alongside the Settlements endpoints they're computed from.
 
 ---
 

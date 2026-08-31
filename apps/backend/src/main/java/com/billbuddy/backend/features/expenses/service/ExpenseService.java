@@ -3,7 +3,6 @@ package com.billbuddy.backend.features.expenses.service;
 import com.billbuddy.backend.common.CurrencyUtil;
 import com.billbuddy.backend.exception.ExpenseNotFoundException;
 import com.billbuddy.backend.exception.GroupNotFoundException;
-import com.billbuddy.backend.exception.InvalidCurrencyException;
 import com.billbuddy.backend.exception.InvalidExpenseParticipantException;
 import com.billbuddy.backend.exception.InvalidSplitException;
 import com.billbuddy.backend.exception.NotExpenseOwnerException;
@@ -297,13 +296,7 @@ public class ExpenseService {
     // ===================== HELPERS =====================
 
     private String validateCurrency(String currency, Group group) {
-        String normalized = CurrencyUtil.normalize(currency);
-        if (!normalized.equals(group.getDefaultCurrency())) {
-            throw new InvalidCurrencyException(
-                    "Expense currency must match the group's default currency (" + group.getDefaultCurrency() + ")"
-            );
-        }
-        return normalized;
+        return CurrencyUtil.normalizeAndRequireMatch(currency, group.getDefaultCurrency(), "Expense");
     }
 
     private void requireOwnerOrAdmin(Expense expense, Long requesterId) {
