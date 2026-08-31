@@ -1,0 +1,147 @@
+package com.billbuddy.backend.features.expenses.model;
+
+import com.billbuddy.backend.features.auth.model.User;
+import com.billbuddy.backend.features.groups.model.Group;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Entity
+@Table(name = "expenses")
+public class Expense {
+
+    @Id
+    @Setter(AccessLevel.NONE)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "group_id", nullable = false)
+    private Group group;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by", nullable = false)
+    private User createdBy;
+
+    @Column(nullable = false)
+    private String description;
+
+    @Column(nullable = false)
+    private BigDecimal amount;
+
+    @Column(nullable = false)
+    private String currency;
+
+    @Column(name = "converted_amount", nullable = false)
+    private BigDecimal convertedAmount;
+
+    @Column(name = "exchange_rate", nullable = false)
+    private BigDecimal exchangeRate;
+
+    @Column
+    private String category;
+
+    @Column(name = "receipt_url")
+    private String receiptUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "split_type", nullable = false)
+    private SplitType splitType;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Builder(access = AccessLevel.PRIVATE)
+    private Expense(
+            Group group,
+            User createdBy,
+            String description,
+            BigDecimal amount,
+            String currency,
+            BigDecimal convertedAmount,
+            BigDecimal exchangeRate,
+            String category,
+            String receiptUrl,
+            SplitType splitType
+    ) {
+        this.group = group;
+        this.createdBy = createdBy;
+        this.description = description;
+        this.amount = amount;
+        this.currency = currency;
+        this.convertedAmount = convertedAmount;
+        this.exchangeRate = exchangeRate;
+        this.category = category;
+        this.receiptUrl = receiptUrl;
+        this.splitType = splitType;
+    }
+
+    public static Expense create(
+            Group group,
+            User createdBy,
+            String description,
+            BigDecimal amount,
+            String currency,
+            BigDecimal convertedAmount,
+            BigDecimal exchangeRate,
+            String category,
+            String receiptUrl,
+            SplitType splitType
+    ) {
+        return Expense.builder()
+                .group(group)
+                .createdBy(createdBy)
+                .description(description)
+                .amount(amount)
+                .currency(currency)
+                .convertedAmount(convertedAmount)
+                .exchangeRate(exchangeRate)
+                .category(category)
+                .receiptUrl(receiptUrl)
+                .splitType(splitType)
+                .build();
+    }
+
+    public void update(
+            String description,
+            BigDecimal amount,
+            String currency,
+            BigDecimal convertedAmount,
+            BigDecimal exchangeRate,
+            String category,
+            String receiptUrl,
+            SplitType splitType
+    ) {
+        this.description = description;
+        this.amount = amount;
+        this.currency = currency;
+        this.convertedAmount = convertedAmount;
+        this.exchangeRate = exchangeRate;
+        this.category = category;
+        this.receiptUrl = receiptUrl;
+        this.splitType = splitType;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
+}

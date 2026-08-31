@@ -152,4 +152,44 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ExpenseNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleExpenseNotFound(ExpenseNotFoundException ex) {
+        return Map.of(
+                "error", "EXPENSE_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidSplitException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidSplit(InvalidSplitException ex) {
+        return Map.of(
+                "error", "INVALID_SPLIT",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidExpenseParticipantException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidExpenseParticipant(InvalidExpenseParticipantException ex) {
+        return Map.of(
+                "error", "INVALID_EXPENSE_PARTICIPANT",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(NotExpenseOwnerException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleNotExpenseOwner(NotExpenseOwnerException ex) {
+        return Map.of(
+                "error", "NOT_EXPENSE_OWNER",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }
