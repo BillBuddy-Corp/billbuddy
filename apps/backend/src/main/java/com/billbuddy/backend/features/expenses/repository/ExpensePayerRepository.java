@@ -11,6 +11,8 @@ public interface ExpensePayerRepository extends JpaRepository<ExpensePayer, Long
 
     List<ExpensePayer> findByExpense_Id(Long expenseId);
 
+    List<ExpensePayer> findByExpense_Group_IdAndExpense_DeletedAtIsNull(Long groupId);
+
     // bulk delete executes immediately, unlike a derived deleteBy (deferred select-then-remove) -- the edit flow re-inserts the same unique key right after this.
     @Modifying
     @Query("delete from ExpensePayer ep where ep.expense.id = :expenseId")

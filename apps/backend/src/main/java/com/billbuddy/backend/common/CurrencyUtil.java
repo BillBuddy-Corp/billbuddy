@@ -18,4 +18,14 @@ public final class CurrencyUtil {
             throw new InvalidCurrencyException("Invalid currency code: " + currency);
         }
     }
+
+    public static String normalizeAndRequireMatch(String currency, String requiredCurrency, String context) {
+        String normalized = normalize(currency);
+        if (!normalized.equals(requiredCurrency)) {
+            throw new InvalidCurrencyException(
+                    context + " currency must match the group's default currency (" + requiredCurrency + ")"
+            );
+        }
+        return normalized;
+    }
 }
