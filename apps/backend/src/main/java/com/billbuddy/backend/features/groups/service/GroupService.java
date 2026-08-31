@@ -1,7 +1,7 @@
 package com.billbuddy.backend.features.groups.service;
 
+import com.billbuddy.backend.common.CurrencyUtil;
 import com.billbuddy.backend.exception.GroupNotFoundException;
-import com.billbuddy.backend.exception.InvalidCurrencyException;
 import com.billbuddy.backend.exception.UserNotFoundException;
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.auth.repository.UserRepository;
@@ -17,7 +17,6 @@ import com.billbuddy.backend.features.groups.repository.GroupRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.util.Currency;
 import java.util.List;
 
 @Service
@@ -51,7 +50,7 @@ public class GroupService {
         Group group = Group.create(
                 request.getName(),
                 request.getDescription(),
-                normalizeCurrency(request.getDefaultCurrency()),
+                CurrencyUtil.normalize(request.getDefaultCurrency()),
                 creator
         );
         group = groupRepository.save(group);
@@ -93,7 +92,7 @@ public class GroupService {
         Group group = groupRepository.findByIdAndDeletedAtIsNull(groupId)
                 .orElseThrow(() -> new GroupNotFoundException("Group not found"));
 
-        group.update(request.getName(), request.getDescription(), normalizeCurrency(request.getDefaultCurrency()));
+        group.update(request.getName(), request.getDescription(), CurrencyUtil.normalize(request.getDefaultCurrency()));
 
         long memberCount = groupMemberRepository.countByGroup_IdAndLeftAtIsNull(groupId);
         return toResponse(group, group.getCreatedBy(), memberCount, GroupRole.ADMIN);
@@ -110,15 +109,6 @@ public class GroupService {
 
         // prevent joining a "ghost" group via a stale invite
         groupInviteRepository.revokeAllActiveInvites(groupId);
-    }
-
-    private String normalizeCurrency(String currency) {
-        String normalized = currency == null ? null : currency.trim().toUpperCase();
-        try {
-            return Currency.getInstance(normalized).getCurrencyCode();
-        } catch (IllegalArgumentException | NullPointerException ex) {
-            throw new InvalidCurrencyException("Invalid currency code: " + currency);
-        }
     }
 
     private GroupResponse toResponse(Group group, User createdBy, long memberCount, GroupRole currentUserRole) {

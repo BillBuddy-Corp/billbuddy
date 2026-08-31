@@ -52,6 +52,11 @@ public class SecurityConfig {
                                 "/api/v1/invites/**"
                         ).authenticated()
 
+                        // PROTECTED EXPENSE ENDPOINTS
+                        .requestMatchers(
+                                "/api/v1/expenses/**"
+                        ).authenticated()
+
                         // EVERYTHING ELSE
                         .anyRequest().authenticated()
                 )
