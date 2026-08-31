@@ -4,7 +4,7 @@ Base path: `/api/v1`. All endpoints below require **Auth required** (`Authorizat
 
 Interactive docs (always in sync with the code): `/swagger-ui.html` once the backend is running.
 
-Balances/Settlements are not implemented yet — Expenses is what they'll be computed from.
+Balances/Settlements are computed from this data — see `settlements.md`.
 
 ---
 
@@ -39,7 +39,7 @@ Creates an expense. Caller must be an active group member.
   "amount": 100,
   "currency": "INR",
   "category": "Food",
-  "receiptUrl": null,
+  "receiptFileId": null,
   "splitType": "EQUAL",
   "payers": [
     { "userId": 1, "amountPaid": 100 }
@@ -47,7 +47,7 @@ Creates an expense. Caller must be an active group member.
   "participantUserIds": [1, 2]
 }
 ```
-`category` and `receiptUrl` are optional plain strings (no upload endpoint — Storage is a separate, deferred feature). For `PERCENTAGE`, replace `participantUserIds` with `percentages: [{ "userId": 1, "percentage": 60 }, ...]`. For `EXACT`, use `exactAmounts: [{ "userId": 1, "amount": 60 }, ...]`. For `ITEMIZED`, use `items: [{ "name": "Pizza", "amount": 60, "assignments": [{ "userId": 1, "share": 1 }, { "userId": 2, "share": 1 }] }, ...]` and omit `amount`'s participant fields — items must sum to `amount`.
+`category` is a plain optional string. `receiptFileId` is optional — upload the receipt image via `POST /files` first (see `storage.md`), then pass the returned id here; you can only reference a file you uploaded yourself. For `PERCENTAGE`, replace `participantUserIds` with `percentages: [{ "userId": 1, "percentage": 60 }, ...]`. For `EXACT`, use `exactAmounts: [{ "userId": 1, "amount": 60 }, ...]`. For `ITEMIZED`, use `items: [{ "name": "Pizza", "amount": 60, "assignments": [{ "userId": 1, "share": 1 }, { "userId": 2, "share": 1 }] }, ...]` and omit `amount`'s participant fields — items must sum to `amount`.
 
 Every payer and participant/assignment user id must be an active member of the group (`400 INVALID_EXPENSE_PARTICIPANT` otherwise).
 

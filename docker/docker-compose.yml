@@ -12,6 +12,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
     networks:
       - billbuddy-net
 
@@ -35,3 +37,4 @@ networks:
 
 volumes:
   postgres_data:
+  uploads_data:

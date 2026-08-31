@@ -38,6 +38,8 @@ import com.billbuddy.backend.features.groups.model.GroupRole;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
 import com.billbuddy.backend.features.groups.service.GroupAccessService;
+import com.billbuddy.backend.features.storage.model.StoredFile;
+import com.billbuddy.backend.features.storage.service.FileService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -63,6 +65,7 @@ public class ExpenseService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final GroupAccessService groupAccessService;
+    private final FileService fileService;
 
     public ExpenseService(
             ExpenseRepository expenseRepository,
@@ -73,7 +76,8 @@ public class ExpenseService {
             GroupRepository groupRepository,
             GroupMemberRepository groupMemberRepository,
             UserRepository userRepository,
-            GroupAccessService groupAccessService
+            GroupAccessService groupAccessService,
+            FileService fileService
     ) {
         this.expenseRepository = expenseRepository;
         this.expensePayerRepository = expensePayerRepository;
@@ -84,6 +88,7 @@ public class ExpenseService {
         this.groupMemberRepository = groupMemberRepository;
         this.userRepository = userRepository;
         this.groupAccessService = groupAccessService;
+        this.fileService = fileService;
     }
 
     @Transactional
@@ -96,10 +101,11 @@ public class ExpenseService {
 
         ExpenseInput input = ExpenseInput.from(request);
         String currency = validateCurrency(input.currency(), group);
+        StoredFile receiptFile = resolveReceiptFile(input.receiptFileId(), requesterId);
 
         Expense expense = Expense.create(
                 group, creator, input.description(), input.amount(), currency,
-                input.amount(), BigDecimal.ONE, input.category(), input.receiptUrl(), input.splitType()
+                input.amount(), BigDecimal.ONE, input.category(), receiptFile, input.splitType()
         );
         expense = expenseRepository.save(expense);
 
@@ -136,6 +142,7 @@ public class ExpenseService {
         Group group = expense.getGroup();
         ExpenseInput input = ExpenseInput.from(request);
         String currency = validateCurrency(input.currency(), group);
+        StoredFile receiptFile = resolveReceiptFile(input.receiptFileId(), requesterId);
 
         // FK-safe delete order: assignments -> items -> payers/splits
         expenseItemAssignmentRepository.deleteByExpenseItem_Expense_Id(expenseId);
@@ -145,7 +152,7 @@ public class ExpenseService {
 
         expense.update(
                 input.description(), input.amount(), currency, input.amount(),
-                BigDecimal.ONE, input.category(), input.receiptUrl(), input.splitType()
+                BigDecimal.ONE, input.category(), receiptFile, input.splitType()
         );
 
         persistSplit(expense, group, input);
@@ -299,6 +306,10 @@ public class ExpenseService {
         return CurrencyUtil.normalizeAndRequireMatch(currency, group.getDefaultCurrency(), "Expense");
     }
 
+    private StoredFile resolveReceiptFile(Long receiptFileId, Long requesterId) {
+        return receiptFileId == null ? null : fileService.requireOwnedFile(receiptFileId, requesterId);
+    }
+
     private void requireOwnerOrAdmin(Expense expense, Long requesterId) {
         GroupMember requesterMembership = groupAccessService.requireActiveMember(expense.getGroup().getId(), requesterId);
         boolean isCreator = expense.getCreatedBy().getId().equals(requesterId);
@@ -341,7 +352,7 @@ public class ExpenseService {
                 expense.getConvertedAmount(),
                 expense.getExchangeRate(),
                 expense.getCategory(),
-                expense.getReceiptUrl(),
+                expense.getReceiptFile() == null ? null : "/api/v1/files/" + expense.getReceiptFile().getId(),
                 expense.getSplitType(),
                 expense.getCreatedBy().getId(),
                 expense.getCreatedBy().getFullName(),
@@ -383,7 +394,7 @@ public class ExpenseService {
             BigDecimal amount,
             String currency,
             String category,
-            String receiptUrl,
+            Long receiptFileId,
             SplitType splitType,
             List<PayerEntry> payers,
             List<Long> participantUserIds,
@@ -393,7 +404,7 @@ public class ExpenseService {
     ) {
         static ExpenseInput from(CreateExpenseRequest r) {
             return new ExpenseInput(
-                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getCategory(), r.getReceiptUrl(),
+                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getCategory(), r.getReceiptFileId(),
                     r.getSplitType(), r.getPayers(), r.getParticipantUserIds(), r.getPercentages(),
                     r.getExactAmounts(), r.getItems()
             );
@@ -401,7 +412,7 @@ public class ExpenseService {
 
         static ExpenseInput from(UpdateExpenseRequest r) {
             return new ExpenseInput(
-                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getCategory(), r.getReceiptUrl(),
+                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getCategory(), r.getReceiptFileId(),
                     r.getSplitType(), r.getPayers(), r.getParticipantUserIds(), r.getPercentages(),
                     r.getExactAmounts(), r.getItems()
             );

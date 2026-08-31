@@ -4,7 +4,7 @@ CREATE TABLE "users" (
   "email" varchar UNIQUE NOT NULL,
   "mobile_number" varchar UNIQUE,
   "password_hash" varchar,
-  "profile_pic_url" varchar,
+  "profile_pic_file_id" bigint,
   "fcm_token" varchar,
   "default_currency" varchar DEFAULT 'INR',
   "email_verified_at" timestamp,
@@ -21,3 +21,4 @@ CHECK (auth_provider IN ('EMAIL', 'GOOGLE', 'MOBILE'));
 ALTER TABLE users
 ALTER COLUMN created_at DROP DEFAULT,
 ALTER COLUMN updated_at DROP DEFAULT;
+ALTER TABLE "users" ADD FOREIGN KEY ("profile_pic_file_id") REFERENCES "files" ("id");

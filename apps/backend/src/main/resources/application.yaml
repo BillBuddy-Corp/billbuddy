@@ -22,6 +22,11 @@ spring:
           starttls:
             enable: true
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiry-minutes: ${JWT_EXPIRATION_MINUTES}
@@ -32,6 +37,7 @@ invite:
 
 app:
   join-link-base-url: ${JOIN_LINK_BASE_URL:http://localhost:3000/invites/join}
+  upload-dir: ${UPLOAD_DIR:/app/uploads}
 
 springdoc:
   api-docs:
