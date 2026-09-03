@@ -1,14 +1,14 @@
-package com.billbuddy.backend.features.groups.util;
+package com.billbuddy.backend.common;
 
 import java.security.SecureRandom;
 import java.util.Base64;
 
-public final class InviteTokenUtil {
+public final class TokenGeneratorUtil {
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int TOKEN_BYTES = 32;
 
-    private InviteTokenUtil() {
+    private TokenGeneratorUtil() {
         // prevent instantiation
     }
 

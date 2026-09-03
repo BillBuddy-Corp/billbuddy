@@ -55,6 +55,9 @@ class AuthServiceTest {
     @Mock
     private HttpServletRequest httpRequest;
 
+    @Mock
+    private AuthTokenService authTokenService;
+
     @InjectMocks
     private AuthService authService;
 

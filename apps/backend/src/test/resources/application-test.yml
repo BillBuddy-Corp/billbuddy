@@ -31,5 +31,11 @@ jwt:
 invite:
   email-expiry-days: 7
 
+auth-token:
+  password-reset-expiry-minutes: 60
+  email-verification-expiry-hours: 24
+
 app:
   join-link-base-url: http://localhost:3000/invites/join
+  reset-password-base-url: http://localhost:3000/auth/reset-password
+  verify-email-base-url: http://localhost:3000/auth/verify-email

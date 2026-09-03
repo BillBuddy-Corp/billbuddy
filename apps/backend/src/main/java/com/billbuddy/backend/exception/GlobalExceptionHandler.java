@@ -232,4 +232,14 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidAuthTokenException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidAuthToken(InvalidAuthTokenException ex) {
+        return Map.of(
+                "error", "INVALID_AUTH_TOKEN",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }

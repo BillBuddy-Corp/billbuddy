@@ -1,12 +1,17 @@
 package com.billbuddy.backend.features.auth.controller;
 
+import com.billbuddy.backend.features.auth.dto.request.ChangePasswordRequest;
+import com.billbuddy.backend.features.auth.dto.request.ForgotPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
 import com.billbuddy.backend.features.auth.dto.request.LogoutRequest;
 import com.billbuddy.backend.features.auth.dto.request.RefreshTokenRequest;
+import com.billbuddy.backend.features.auth.dto.request.ResetPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.SignupRequest;
+import com.billbuddy.backend.features.auth.dto.request.VerifyEmailRequest;
 import com.billbuddy.backend.features.auth.dto.response.LoginResponse;
 import com.billbuddy.backend.features.auth.dto.response.SignupResponse;
 import com.billbuddy.backend.features.auth.service.AuthService;
+import com.billbuddy.backend.features.auth.service.AuthTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -30,9 +35,11 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthTokenService authTokenService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, AuthTokenService authTokenService) {
         this.authService = authService;
+        this.authTokenService = authTokenService;
     }
 
     @PostMapping("/signup")
@@ -146,5 +153,87 @@ public class AuthController {
         );
     }
 
+    @PostMapping("/forgot-password")
+    @Operation(
+            summary = "Request a password reset",
+            description = "Emails a reset link if the address is registered. Always returns success to avoid revealing whether an email exists"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Request accepted"),
+            @ApiResponse(responseCode = "400", description = "Invalid input")
+    })
+    public ResponseEntity<Map<String, String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        authTokenService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok(Map.of("message", "If that email is registered, a reset link has been sent"));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(
+            summary = "Reset password with a token",
+            description = "Consumes a password reset token, sets a new password, and revokes all active sessions"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Password reset successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid, expired, or already-used token")
+    })
+    public ResponseEntity<Map<String, String>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        authTokenService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message", "Password reset successful"));
+    }
+
+    @PostMapping("/change-password")
+    @Operation(
+            summary = "Change password",
+            description = "Changes the authenticated user's password and revokes all active sessions",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Password changed successfully"),
+            @ApiResponse(responseCode = "401", description = "Current password is incorrect")
+    })
+    public ResponseEntity<Map<String, String>> changePassword(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        authTokenService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+    }
+
+    @PostMapping("/verify-email")
+    @Operation(
+            summary = "Verify email with a token",
+            description = "Consumes an email verification token and marks the email as verified"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Email verified successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid, expired, or already-used token")
+    })
+    public ResponseEntity<Map<String, String>> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request
+    ) {
+        authTokenService.verifyEmail(request.getToken());
+        return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
+    }
+
+    @PostMapping("/verify-email/resend")
+    @Operation(
+            summary = "Resend the email verification link",
+            description = "No-ops with a friendly message if the email is already verified",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Verification email sent, or already verified"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<Map<String, String>> resendVerification(
+            @AuthenticationPrincipal Long userId
+    ) {
+        String message = authTokenService.resendVerificationEmail(userId);
+        return ResponseEntity.ok(Map.of("message", message));
+    }
 
 }
