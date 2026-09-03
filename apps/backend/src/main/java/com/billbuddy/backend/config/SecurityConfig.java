@@ -36,6 +36,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refreshtoken",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/reset-password",
+                                "/api/v1/auth/verify-email",
                                 "/actuator/health"
                         ).permitAll()
 
@@ -43,7 +46,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/auth/logout-all",
                                 "/api/v1/auth/sessions",
-                                "/api/v1/auth/logout"
+                                "/api/v1/auth/logout",
+                                "/api/v1/auth/change-password",
+                                "/api/v1/auth/verify-email/resend"
                         ).authenticated()
 
                         // PROTECTED GROUP ENDPOINTS

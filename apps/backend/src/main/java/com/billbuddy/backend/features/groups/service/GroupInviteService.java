@@ -18,7 +18,7 @@ import com.billbuddy.backend.features.groups.model.GroupMember;
 import com.billbuddy.backend.features.groups.repository.GroupInviteRepository;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
-import com.billbuddy.backend.features.groups.util.InviteTokenUtil;
+import com.billbuddy.backend.common.TokenGeneratorUtil;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -73,7 +73,7 @@ public class GroupInviteService {
         User invitedBy = userRepository.findById(requesterId)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        String rawToken = InviteTokenUtil.generate();
+        String rawToken = TokenGeneratorUtil.generate();
         String tokenHash = TokenHashUtil.sha256(rawToken);
 
         GroupInvite invite = GroupInvite.createEmailInvite(
@@ -116,7 +116,7 @@ public class GroupInviteService {
         User invitedBy = userRepository.findById(requesterId)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        String rawToken = InviteTokenUtil.generate();
+        String rawToken = TokenGeneratorUtil.generate();
         GroupInvite invite = GroupInvite.createLinkInvite(group, rawToken, invitedBy);
         invite = groupInviteRepository.save(invite);
 

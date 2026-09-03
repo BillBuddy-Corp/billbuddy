@@ -232,6 +232,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidAuthTokenException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidAuthToken(InvalidAuthTokenException ex) {
+        return Map.of(
+                "error", "INVALID_AUTH_TOKEN",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
     @ExceptionHandler(StoredFileNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, Object> handleStoredFileNotFound(StoredFileNotFoundException ex) {

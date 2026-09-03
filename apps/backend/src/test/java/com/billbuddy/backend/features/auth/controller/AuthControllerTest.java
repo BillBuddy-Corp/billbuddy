@@ -1,16 +1,22 @@
 package com.billbuddy.backend.features.auth.controller;
 
 import com.billbuddy.backend.config.SecurityConfig;
+import com.billbuddy.backend.exception.InvalidAuthTokenException;
 import com.billbuddy.backend.exception.InvalidCredentialsException;
 import com.billbuddy.backend.exception.UserAlreadyExistsException;
+import com.billbuddy.backend.features.auth.dto.request.ChangePasswordRequest;
+import com.billbuddy.backend.features.auth.dto.request.ForgotPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
 import com.billbuddy.backend.features.auth.dto.request.LogoutRequest;
+import com.billbuddy.backend.features.auth.dto.request.ResetPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.SignupRequest;
+import com.billbuddy.backend.features.auth.dto.request.VerifyEmailRequest;
 import com.billbuddy.backend.features.auth.dto.response.LoginResponse;
 import com.billbuddy.backend.features.auth.dto.response.SessionResponse;
 import com.billbuddy.backend.features.auth.dto.response.SignupResponse;
 import com.billbuddy.backend.features.auth.security.JwtService;
 import com.billbuddy.backend.features.auth.service.AuthService;
+import com.billbuddy.backend.features.auth.service.AuthTokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
@@ -29,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,6 +57,9 @@ class AuthControllerTest {
 
     @MockBean
     private AuthService authService;
+
+    @MockBean
+    private AuthTokenService authTokenService;
 
     @MockBean
     private JwtService jwtService;
@@ -213,5 +223,171 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessions[0].deviceId").value("device-abc"))
                 .andExpect(jsonPath("$.sessions[0].current").value(true));
+    }
+
+    // ===================== FORGOT PASSWORD =====================
+
+    @Test
+    void forgotPassword_returns200_whenRequestValid() throws Exception {
+        ForgotPasswordRequest request = new ForgotPasswordRequest();
+        request.setEmail("jane@example.com");
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(authTokenService).requestPasswordReset("jane@example.com");
+    }
+
+    @Test
+    void forgotPassword_returns400_whenEmailBlank() throws Exception {
+        ForgotPasswordRequest request = new ForgotPasswordRequest();
+        request.setEmail("");
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ===================== RESET PASSWORD =====================
+
+    @Test
+    void resetPassword_returns200_whenTokenValid() throws Exception {
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setToken("valid-reset-token");
+        request.setNewPassword("newpassword123");
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(authTokenService).resetPassword("valid-reset-token", "newpassword123");
+    }
+
+    @Test
+    void resetPassword_returns400_whenTokenInvalid() throws Exception {
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setToken("bad-token");
+        request.setNewPassword("newpassword123");
+
+        doThrow(new InvalidAuthTokenException("Invalid or expired token"))
+                .when(authTokenService).resetPassword("bad-token", "newpassword123");
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void resetPassword_returns400_whenNewPasswordTooShort() throws Exception {
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setToken("valid-reset-token");
+        request.setNewPassword("short");
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ===================== CHANGE PASSWORD =====================
+
+    @Test
+    void changePassword_returns200_whenAuthorizedAndValid() throws Exception {
+        stubValidAccessToken(1L);
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("oldpassword");
+        request.setNewPassword("newpassword123");
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(authTokenService).changePassword(1L, "oldpassword", "newpassword123");
+    }
+
+    @Test
+    void changePassword_returns403_whenNoAuthorizationHeader() throws Exception {
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("oldpassword");
+        request.setNewPassword("newpassword123");
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void changePassword_returns401_whenCurrentPasswordIncorrect() throws Exception {
+        stubValidAccessToken(1L);
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("wrongpassword");
+        request.setNewPassword("newpassword123");
+
+        doThrow(new InvalidCredentialsException("Current password is incorrect"))
+                .when(authTokenService).changePassword(1L, "wrongpassword", "newpassword123");
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // ===================== VERIFY EMAIL =====================
+
+    @Test
+    void verifyEmail_returns200_whenTokenValid() throws Exception {
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setToken("valid-verify-token");
+
+        mockMvc.perform(post("/api/v1/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(authTokenService).verifyEmail("valid-verify-token");
+    }
+
+    @Test
+    void verifyEmail_returns400_whenTokenInvalid() throws Exception {
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setToken("bad-token");
+
+        doThrow(new InvalidAuthTokenException("Invalid or expired token"))
+                .when(authTokenService).verifyEmail("bad-token");
+
+        mockMvc.perform(post("/api/v1/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ===================== RESEND VERIFICATION =====================
+
+    @Test
+    void resendVerification_returns200_whenAuthorized() throws Exception {
+        stubValidAccessToken(1L);
+        when(authTokenService.resendVerificationEmail(1L)).thenReturn("Verification email sent");
+
+        mockMvc.perform(post("/api/v1/auth/verify-email/resend")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Verification email sent"));
+    }
+
+    @Test
+    void resendVerification_returns403_whenNoAuthorizationHeader() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/verify-email/resend"))
+                .andExpect(status().isForbidden());
     }
 }
