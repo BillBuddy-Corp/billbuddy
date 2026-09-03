@@ -2,6 +2,7 @@ package com.billbuddy.backend.features.expenses.model;
 
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.groups.model.Group;
+import com.billbuddy.backend.features.storage.model.StoredFile;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -48,8 +49,9 @@ public class Expense {
     @Column
     private String category;
 
-    @Column(name = "receipt_url")
-    private String receiptUrl;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receipt_file_id")
+    private StoredFile receiptFile;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "split_type", nullable = false)
@@ -76,7 +78,7 @@ public class Expense {
             BigDecimal convertedAmount,
             BigDecimal exchangeRate,
             String category,
-            String receiptUrl,
+            StoredFile receiptFile,
             SplitType splitType
     ) {
         this.group = group;
@@ -87,7 +89,7 @@ public class Expense {
         this.convertedAmount = convertedAmount;
         this.exchangeRate = exchangeRate;
         this.category = category;
-        this.receiptUrl = receiptUrl;
+        this.receiptFile = receiptFile;
         this.splitType = splitType;
     }
 
@@ -100,7 +102,7 @@ public class Expense {
             BigDecimal convertedAmount,
             BigDecimal exchangeRate,
             String category,
-            String receiptUrl,
+            StoredFile receiptFile,
             SplitType splitType
     ) {
         return Expense.builder()
@@ -112,7 +114,7 @@ public class Expense {
                 .convertedAmount(convertedAmount)
                 .exchangeRate(exchangeRate)
                 .category(category)
-                .receiptUrl(receiptUrl)
+                .receiptFile(receiptFile)
                 .splitType(splitType)
                 .build();
     }
@@ -124,7 +126,7 @@ public class Expense {
             BigDecimal convertedAmount,
             BigDecimal exchangeRate,
             String category,
-            String receiptUrl,
+            StoredFile receiptFile,
             SplitType splitType
     ) {
         this.description = description;
@@ -133,7 +135,7 @@ public class Expense {
         this.convertedAmount = convertedAmount;
         this.exchangeRate = exchangeRate;
         this.category = category;
-        this.receiptUrl = receiptUrl;
+        this.receiptFile = receiptFile;
         this.splitType = splitType;
     }
 

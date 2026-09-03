@@ -11,4 +11,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     Optional<Expense> findByIdAndDeletedAtIsNull(Long id);
 
     List<Expense> findByGroup_IdAndDeletedAtIsNullOrderByCreatedAtDesc(Long groupId);
+
+    List<Expense> findByReceiptFile_Id(Long fileId);
 }
