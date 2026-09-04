@@ -63,7 +63,7 @@ Full update of name/description/currency.
 ---
 
 ### `DELETE /groups/{groupId}` — Admin only
-Soft-deletes the group and revokes all its active invites.
+Soft-deletes the group and revokes all its active invites. Blocked while any member still has a non-zero net balance (`409`), settle up via Settlements first (see `settlements.md`).
 
 **Response** `204 No Content`
 

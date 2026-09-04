@@ -69,6 +69,15 @@ public class BalanceService {
                 .toList();
     }
 
+    // No access check here, unlike the other public methods -- this is meant to be called by
+    // GroupService as an internal business-rule check (blocking group deletion) after it has
+    // already authorized the caller itself, not exposed as its own endpoint.
+    @Transactional
+    public boolean hasUnsettledBalances(Long groupId) {
+        return computeNetBalances(groupId).values().stream()
+                .anyMatch(balance -> balance.compareTo(BigDecimal.ZERO) != 0);
+    }
+
     @Transactional
     public List<SimplifiedSettlementResponse> getSimplifiedBalances(Long groupId, Long requesterId) {
         groupAccessService.requireActiveMember(groupId, requesterId);

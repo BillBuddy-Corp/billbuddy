@@ -2,6 +2,7 @@ package com.billbuddy.backend.features.groups.service;
 
 import com.billbuddy.backend.common.CurrencyUtil;
 import com.billbuddy.backend.exception.GroupNotFoundException;
+import com.billbuddy.backend.exception.UnsettledBalancesException;
 import com.billbuddy.backend.exception.UserNotFoundException;
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.auth.repository.UserRepository;
@@ -14,6 +15,7 @@ import com.billbuddy.backend.features.groups.model.GroupRole;
 import com.billbuddy.backend.features.groups.repository.GroupInviteRepository;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
+import com.billbuddy.backend.features.settlements.service.BalanceService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -27,19 +29,22 @@ public class GroupService {
     private final GroupInviteRepository groupInviteRepository;
     private final UserRepository userRepository;
     private final GroupAccessService groupAccessService;
+    private final BalanceService balanceService;
 
     public GroupService(
             GroupRepository groupRepository,
             GroupMemberRepository groupMemberRepository,
             GroupInviteRepository groupInviteRepository,
             UserRepository userRepository,
-            GroupAccessService groupAccessService
+            GroupAccessService groupAccessService,
+            BalanceService balanceService
     ) {
         this.groupRepository = groupRepository;
         this.groupMemberRepository = groupMemberRepository;
         this.groupInviteRepository = groupInviteRepository;
         this.userRepository = userRepository;
         this.groupAccessService = groupAccessService;
+        this.balanceService = balanceService;
     }
 
     @Transactional
@@ -104,7 +109,9 @@ public class GroupService {
         Group group = groupRepository.findByIdAndDeletedAtIsNull(groupId)
                 .orElseThrow(() -> new GroupNotFoundException("Group not found"));
 
-        // TODO: block delete unless all balances are settled once Settlements exist
+        if (balanceService.hasUnsettledBalances(groupId)) {
+            throw new UnsettledBalancesException("Settle all balances before deleting this group");
+        }
         group.softDelete();
 
         // prevent joining a "ghost" group via a stale invite
