@@ -272,4 +272,14 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ReceiptScanFailedException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleReceiptScanFailed(ReceiptScanFailedException ex) {
+        return Map.of(
+                "error", "RECEIPT_SCAN_FAILED",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }
