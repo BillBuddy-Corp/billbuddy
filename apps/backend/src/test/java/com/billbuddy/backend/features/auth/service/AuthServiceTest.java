@@ -58,6 +58,9 @@ class AuthServiceTest {
     @Mock
     private AuthTokenService authTokenService;
 
+    @Mock
+    private MobileOtpService mobileOtpService;
+
     @InjectMocks
     private AuthService authService;
 
@@ -101,6 +104,7 @@ class AuthServiceTest {
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("hashed-password");
+        verify(mobileOtpService).sendOtpIfMobileNumberPresent(userCaptor.getValue());
     }
 
     @Test

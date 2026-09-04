@@ -35,6 +35,10 @@ auth-token:
   password-reset-expiry-minutes: 60
   email-verification-expiry-hours: 24
 
+otp:
+  expiry-minutes: 10
+  max-attempts: 5
+
 gemini:
   api-key: unused
   model: gemini-3.8-flash

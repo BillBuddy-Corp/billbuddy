@@ -33,6 +33,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthTokenService authTokenService;
+    private final MobileOtpService mobileOtpService;
 
     @Value("${jwt.refresh-token-expiry-days}")
     private int refreshTokenExpiryDays;
@@ -42,13 +43,15 @@ public class AuthService {
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            AuthTokenService authTokenService
+            AuthTokenService authTokenService,
+            MobileOtpService mobileOtpService
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authTokenService = authTokenService;
+        this.mobileOtpService = mobileOtpService;
     }
 
     // ===================== SIGNUP =====================
@@ -74,6 +77,7 @@ public class AuthService {
             log.info("Signup successful, userId={}", saved.getId());
 
             authTokenService.sendVerificationEmail(saved);
+            mobileOtpService.sendOtpIfMobileNumberPresent(saved);
 
             return new SignupResponse(
                     saved.getId(),
