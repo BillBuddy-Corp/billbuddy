@@ -2,6 +2,7 @@ package com.billbuddy.backend.features.groups.service;
 
 import com.billbuddy.backend.exception.GroupNotFoundException;
 import com.billbuddy.backend.exception.InvalidCurrencyException;
+import com.billbuddy.backend.exception.UnsettledBalancesException;
 import com.billbuddy.backend.exception.UserNotFoundException;
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.auth.repository.UserRepository;
@@ -14,6 +15,7 @@ import com.billbuddy.backend.features.groups.model.GroupRole;
 import com.billbuddy.backend.features.groups.repository.GroupInviteRepository;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
+import com.billbuddy.backend.features.settlements.service.BalanceService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -47,6 +49,9 @@ class GroupServiceTest {
 
     @Mock
     private GroupAccessService groupAccessService;
+
+    @Mock
+    private BalanceService balanceService;
 
     @InjectMocks
     private GroupService groupService;
@@ -247,10 +252,28 @@ class GroupServiceTest {
 
         when(groupAccessService.requireAdmin(10L, 1L)).thenReturn(admin);
         when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
+        when(balanceService.hasUnsettledBalances(10L)).thenReturn(false);
 
         groupService.deleteGroup(10L, 1L);
 
         assertThat(group.isDeleted()).isTrue();
         verify(groupInviteRepository).revokeAllActiveInvites(10L);
+    }
+
+    @Test
+    void deleteGroup_throwsUnsettledBalances_whenSomeoneStillOwesMoney() {
+        User user = buildUser(1L);
+        Group group = buildGroup(10L, user);
+        GroupMember admin = GroupMember.createAdmin(group, user);
+
+        when(groupAccessService.requireAdmin(10L, 1L)).thenReturn(admin);
+        when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
+        when(balanceService.hasUnsettledBalances(10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> groupService.deleteGroup(10L, 1L))
+                .isInstanceOf(UnsettledBalancesException.class);
+
+        assertThat(group.isDeleted()).isFalse();
+        verify(groupInviteRepository, never()).revokeAllActiveInvites(any());
     }
 }

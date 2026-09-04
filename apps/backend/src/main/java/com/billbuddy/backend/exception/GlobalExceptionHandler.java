@@ -142,6 +142,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(UnsettledBalancesException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> handleUnsettledBalances(UnsettledBalancesException ex) {
+        return Map.of(
+                "error", "UNSETTLED_BALANCES",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
     @ExceptionHandler(InvalidCurrencyException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, Object> handleInvalidCurrency(InvalidCurrencyException ex) {

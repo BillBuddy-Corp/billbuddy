@@ -2,6 +2,7 @@ package com.billbuddy.backend.features.groups.controller;
 
 import com.billbuddy.backend.config.SecurityConfig;
 import com.billbuddy.backend.exception.NotGroupAdminException;
+import com.billbuddy.backend.exception.UnsettledBalancesException;
 import com.billbuddy.backend.features.auth.security.JwtService;
 import com.billbuddy.backend.features.groups.dto.request.CreateGroupRequest;
 import com.billbuddy.backend.features.groups.dto.request.UpdateGroupRequest;
@@ -24,6 +25,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -172,5 +174,17 @@ class GroupControllerTest {
         mockMvc.perform(delete("/api/v1/groups/1")
                         .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteGroup_returns409_whenBalancesAreUnsettled() throws Exception {
+        stubValidAccessToken(1L);
+        doThrow(new UnsettledBalancesException("Settle all balances before deleting this group"))
+                .when(groupService).deleteGroup(1L, 1L);
+
+        mockMvc.perform(delete("/api/v1/groups/1")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("UNSETTLED_BALANCES"));
     }
 }

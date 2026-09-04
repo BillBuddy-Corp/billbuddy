@@ -180,6 +180,68 @@ class BalanceServiceTest {
                 .isInstanceOf(GroupNotFoundException.class);
     }
 
+    // ===================== HAS UNSETTLED BALANCES =====================
+
+    @Test
+    void hasUnsettledBalances_returnsFalse_whenEveryoneIsSquare() {
+        User admin = buildUser(1L);
+        User member1 = buildUser(2L);
+        Group group = buildGroup(10L, admin);
+        GroupMember adminMembership = GroupMember.createAdmin(group, admin);
+        Expense expense = buildExpense(100L, group, admin, new BigDecimal("50.00"));
+
+        when(groupMemberRepository.findByGroup_IdAndLeftAtIsNull(10L))
+                .thenReturn(List.of(adminMembership, GroupMember.createMember(group, member1)));
+        when(expensePayerRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(ExpensePayer.create(expense, admin, new BigDecimal("50.00"))));
+        when(expenseSplitRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(
+                        ExpenseSplit.create(expense, admin, new BigDecimal("25.00"), null),
+                        ExpenseSplit.create(expense, member1, new BigDecimal("25.00"), null)
+                ));
+        // member1 settles up their 25 owed to admin in cash
+        Settlement settlement = Settlement.create(group, member1, admin, member1, new BigDecimal("25.00"), "INR", null);
+        when(settlementRepository.findByGroup_IdAndDeletedAtIsNull(10L)).thenReturn(List.of(settlement));
+
+        assertThat(balanceService.hasUnsettledBalances(10L)).isFalse();
+    }
+
+    @Test
+    void hasUnsettledBalances_returnsTrue_whenSomeoneStillOwesMoney() {
+        User admin = buildUser(1L);
+        User member1 = buildUser(2L);
+        Group group = buildGroup(10L, admin);
+        GroupMember adminMembership = GroupMember.createAdmin(group, admin);
+        Expense expense = buildExpense(100L, group, admin, new BigDecimal("50.00"));
+
+        when(groupMemberRepository.findByGroup_IdAndLeftAtIsNull(10L))
+                .thenReturn(List.of(adminMembership, GroupMember.createMember(group, member1)));
+        when(expensePayerRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(ExpensePayer.create(expense, admin, new BigDecimal("50.00"))));
+        when(expenseSplitRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(
+                        ExpenseSplit.create(expense, admin, new BigDecimal("25.00"), null),
+                        ExpenseSplit.create(expense, member1, new BigDecimal("25.00"), null)
+                ));
+        when(settlementRepository.findByGroup_IdAndDeletedAtIsNull(10L)).thenReturn(List.of());
+
+        assertThat(balanceService.hasUnsettledBalances(10L)).isTrue();
+    }
+
+    @Test
+    void hasUnsettledBalances_returnsFalse_whenGroupHasNoActivity() {
+        User admin = buildUser(1L);
+        Group group = buildGroup(10L, admin);
+        GroupMember adminMembership = GroupMember.createAdmin(group, admin);
+
+        when(groupMemberRepository.findByGroup_IdAndLeftAtIsNull(10L)).thenReturn(List.of(adminMembership));
+        when(expensePayerRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L)).thenReturn(List.of());
+        when(expenseSplitRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L)).thenReturn(List.of());
+        when(settlementRepository.findByGroup_IdAndDeletedAtIsNull(10L)).thenReturn(List.of());
+
+        assertThat(balanceService.hasUnsettledBalances(10L)).isFalse();
+    }
+
     // ===================== SIMPLIFIED BALANCES =====================
 
     @Test
