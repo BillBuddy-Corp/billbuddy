@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Getter
 @Setter
@@ -99,10 +100,14 @@ public class User {
                 .build();
     }
 
-    public void updateProfile(String fullName, StoredFile profilePicFile, String defaultCurrency) {
+    public void updateProfile(String fullName, StoredFile profilePicFile, String defaultCurrency, String mobileNumber) {
         this.fullName = fullName;
         this.profilePicFile = profilePicFile;
         this.defaultCurrency = defaultCurrency;
+        if (!Objects.equals(this.mobileNumber, mobileNumber)) {
+            this.mobileNumber = mobileNumber;
+            this.mobileVerifiedAt = null;
+        }
     }
 
 }

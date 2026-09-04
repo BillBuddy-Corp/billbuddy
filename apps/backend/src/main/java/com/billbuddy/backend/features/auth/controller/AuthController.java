@@ -8,10 +8,12 @@ import com.billbuddy.backend.features.auth.dto.request.RefreshTokenRequest;
 import com.billbuddy.backend.features.auth.dto.request.ResetPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.SignupRequest;
 import com.billbuddy.backend.features.auth.dto.request.VerifyEmailRequest;
+import com.billbuddy.backend.features.auth.dto.request.VerifyMobileRequest;
 import com.billbuddy.backend.features.auth.dto.response.LoginResponse;
 import com.billbuddy.backend.features.auth.dto.response.SignupResponse;
 import com.billbuddy.backend.features.auth.service.AuthService;
 import com.billbuddy.backend.features.auth.service.AuthTokenService;
+import com.billbuddy.backend.features.auth.service.MobileOtpService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -36,10 +38,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthTokenService authTokenService;
+    private final MobileOtpService mobileOtpService;
 
-    public AuthController(AuthService authService, AuthTokenService authTokenService) {
+    public AuthController(AuthService authService, AuthTokenService authTokenService, MobileOtpService mobileOtpService) {
         this.authService = authService;
         this.authTokenService = authTokenService;
+        this.mobileOtpService = mobileOtpService;
     }
 
     @PostMapping("/signup")
@@ -233,6 +237,42 @@ public class AuthController {
             @AuthenticationPrincipal Long userId
     ) {
         String message = authTokenService.resendVerificationEmail(userId);
+        return ResponseEntity.ok(Map.of("message", message));
+    }
+
+    @PostMapping("/verify-mobile")
+    @Operation(
+            summary = "Verify mobile number with an OTP code",
+            description = "Consumes a 6-digit code sent by SMS and marks the mobile number as verified",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Mobile number verified successfully"),
+            @ApiResponse(responseCode = "400", description = "Incorrect, expired, or already-used code")
+    })
+    public ResponseEntity<Map<String, String>> verifyMobile(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody VerifyMobileRequest request
+    ) {
+        mobileOtpService.verifyMobile(userId, request.getCode());
+        return ResponseEntity.ok(Map.of("message", "Mobile number verified successfully"));
+    }
+
+    @PostMapping("/verify-mobile/resend")
+    @Operation(
+            summary = "Resend the mobile verification code",
+            description = "No-ops with a friendly message if already verified. Fails if no mobile number is on file",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Verification code sent, or already verified"),
+            @ApiResponse(responseCode = "400", description = "No mobile number on file"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<Map<String, String>> resendMobileVerification(
+            @AuthenticationPrincipal Long userId
+    ) {
+        String message = mobileOtpService.resendOtp(userId);
         return ResponseEntity.ok(Map.of("message", message));
     }
 

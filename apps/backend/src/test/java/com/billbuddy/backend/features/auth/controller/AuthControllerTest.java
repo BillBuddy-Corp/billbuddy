@@ -3,6 +3,8 @@ package com.billbuddy.backend.features.auth.controller;
 import com.billbuddy.backend.config.SecurityConfig;
 import com.billbuddy.backend.exception.InvalidAuthTokenException;
 import com.billbuddy.backend.exception.InvalidCredentialsException;
+import com.billbuddy.backend.exception.InvalidOtpException;
+import com.billbuddy.backend.exception.MobileNumberNotSetException;
 import com.billbuddy.backend.exception.UserAlreadyExistsException;
 import com.billbuddy.backend.features.auth.dto.request.ChangePasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.ForgotPasswordRequest;
@@ -11,12 +13,14 @@ import com.billbuddy.backend.features.auth.dto.request.LogoutRequest;
 import com.billbuddy.backend.features.auth.dto.request.ResetPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.SignupRequest;
 import com.billbuddy.backend.features.auth.dto.request.VerifyEmailRequest;
+import com.billbuddy.backend.features.auth.dto.request.VerifyMobileRequest;
 import com.billbuddy.backend.features.auth.dto.response.LoginResponse;
 import com.billbuddy.backend.features.auth.dto.response.SessionResponse;
 import com.billbuddy.backend.features.auth.dto.response.SignupResponse;
 import com.billbuddy.backend.features.auth.security.JwtService;
 import com.billbuddy.backend.features.auth.service.AuthService;
 import com.billbuddy.backend.features.auth.service.AuthTokenService;
+import com.billbuddy.backend.features.auth.service.MobileOtpService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
@@ -60,6 +64,9 @@ class AuthControllerTest {
 
     @MockBean
     private AuthTokenService authTokenService;
+
+    @MockBean
+    private MobileOtpService mobileOtpService;
 
     @MockBean
     private JwtService jwtService;
@@ -388,6 +395,95 @@ class AuthControllerTest {
     @Test
     void resendVerification_returns403_whenNoAuthorizationHeader() throws Exception {
         mockMvc.perform(post("/api/v1/auth/verify-email/resend"))
+                .andExpect(status().isForbidden());
+    }
+
+    // ===================== VERIFY MOBILE =====================
+
+    @Test
+    void verifyMobile_returns200_whenCodeValid() throws Exception {
+        stubValidAccessToken(1L);
+        VerifyMobileRequest request = new VerifyMobileRequest();
+        request.setCode("123456");
+
+        mockMvc.perform(post("/api/v1/auth/verify-mobile")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(mobileOtpService).verifyMobile(1L, "123456");
+    }
+
+    @Test
+    void verifyMobile_returns400_whenCodeIncorrect() throws Exception {
+        stubValidAccessToken(1L);
+        VerifyMobileRequest request = new VerifyMobileRequest();
+        request.setCode("999999");
+
+        doThrow(new InvalidOtpException("Incorrect code"))
+                .when(mobileOtpService).verifyMobile(1L, "999999");
+
+        mockMvc.perform(post("/api/v1/auth/verify-mobile")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("INVALID_OTP"));
+    }
+
+    @Test
+    void verifyMobile_returns400_whenCodeIsNotSixDigits() throws Exception {
+        stubValidAccessToken(1L);
+        VerifyMobileRequest request = new VerifyMobileRequest();
+        request.setCode("123");
+
+        mockMvc.perform(post("/api/v1/auth/verify-mobile")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void verifyMobile_returns403_whenNoAuthorizationHeader() throws Exception {
+        VerifyMobileRequest request = new VerifyMobileRequest();
+        request.setCode("123456");
+
+        mockMvc.perform(post("/api/v1/auth/verify-mobile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    // ===================== RESEND MOBILE VERIFICATION =====================
+
+    @Test
+    void resendMobileVerification_returns200_whenAuthorized() throws Exception {
+        stubValidAccessToken(1L);
+        when(mobileOtpService.resendOtp(1L)).thenReturn("Verification code sent");
+
+        mockMvc.perform(post("/api/v1/auth/verify-mobile/resend")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Verification code sent"));
+    }
+
+    @Test
+    void resendMobileVerification_returns400_whenNoMobileNumberOnFile() throws Exception {
+        stubValidAccessToken(1L);
+        when(mobileOtpService.resendOtp(1L))
+                .thenThrow(new MobileNumberNotSetException("Add a mobile number to your profile first"));
+
+        mockMvc.perform(post("/api/v1/auth/verify-mobile/resend")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("MOBILE_NUMBER_NOT_SET"));
+    }
+
+    @Test
+    void resendMobileVerification_returns403_whenNoAuthorizationHeader() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/verify-mobile/resend"))
                 .andExpect(status().isForbidden());
     }
 }

@@ -252,6 +252,26 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidOtpException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidOtp(InvalidOtpException ex) {
+        return Map.of(
+                "error", "INVALID_OTP",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(MobileNumberNotSetException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleMobileNumberNotSet(MobileNumberNotSetException ex) {
+        return Map.of(
+                "error", "MOBILE_NUMBER_NOT_SET",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
     @ExceptionHandler(StoredFileNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, Object> handleStoredFileNotFound(StoredFileNotFoundException ex) {

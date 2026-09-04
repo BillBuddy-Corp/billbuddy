@@ -223,6 +223,47 @@ or, if already verified:
 
 ---
 
+## Mobile number verification
+
+A mobile number can be given at signup, or added or changed later via `PUT /users/me` (see `storage.md`). Either way, whenever the number changes, an OTP is sent automatically (same best-effort, never-fails-the-caller pattern as the verification email) and any prior verification status is reset, since a new number is by definition unverified.
+
+The code is a 6-digit number, texted by an `SmsService` (swappable, same pattern as `FileStorageService` in `storage.md`). No real SMS provider is wired in yet, the active implementation just logs the code, so the flow is fully testable locally without any SMS account or cost, ready to swap in a real provider later. Unlike the email/password tokens, an OTP expires in minutes rather than hours, and only allows a limited number of wrong guesses before it's rejected outright, even with the correct code, since a 6-digit code is guessable within a short window in a way a long random token isn't.
+
+---
+
+### `POST /auth/verify-mobile` (**Auth required**)
+Submits the code to verify the authenticated user's mobile number.
+
+**Request**
+```json
+{ "code": "123456" }
+```
+
+**Response** `200 OK`
+```json
+{ "message": "Mobile number verified successfully" }
+```
+
+Fails with `400 INVALID_OTP` if the code is wrong, expired, already used, or the attempt limit has been used up (a fresh code via `verify-mobile/resend` is needed at that point, even to retry the originally-correct one).
+
+---
+
+### `POST /auth/verify-mobile/resend` (**Auth required**)
+Sends a new code, invalidating any previous one. No-ops if the mobile number is already verified.
+
+**Response** `200 OK`
+```json
+{ "message": "Verification code sent" }
+```
+or, if already verified:
+```json
+{ "message": "Mobile number already verified" }
+```
+
+Fails with `400 MOBILE_NUMBER_NOT_SET` if the account has no mobile number on file yet.
+
+---
+
 ## Errors specific to Auth
 
 | `error` | Status | Cause |
@@ -230,3 +271,5 @@ or, if already verified:
 | `USER_ALREADY_EXISTS` | 409 | signup email already registered |
 | `INVALID_CREDENTIALS` | 401 | wrong login password, invalid/expired/revoked refresh token, or wrong `currentPassword` on change-password |
 | `INVALID_AUTH_TOKEN` | 400 | a password reset or email verification token is missing, expired, revoked, or already used |
+| `INVALID_OTP` | 400 | the mobile verification code is wrong, expired, already used, or attempts are exhausted |
+| `MOBILE_NUMBER_NOT_SET` | 400 | requested a mobile verification code with no mobile number on the account |

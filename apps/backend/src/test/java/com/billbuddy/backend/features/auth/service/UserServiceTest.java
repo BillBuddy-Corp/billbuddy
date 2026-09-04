@@ -31,6 +31,9 @@ class UserServiceTest {
     @Mock
     private FileService fileService;
 
+    @Mock
+    private MobileOtpService mobileOtpService;
+
     @InjectMocks
     private UserService userService;
 
@@ -144,5 +147,58 @@ class UserServiceTest {
 
         assertThatThrownBy(() -> userService.updateProfile(1L, request))
                 .isInstanceOf(UserNotFoundException.class);
+    }
+
+    // ===================== MOBILE NUMBER =====================
+
+    @Test
+    void updateProfile_sendsOtp_whenMobileNumberChanges() {
+        User user = buildUser(1L); // no mobile number set yet
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("Jane Doe");
+        request.setDefaultCurrency("INR");
+        request.setMobileNumber("+919876543210");
+
+        UserProfileResponse response = userService.updateProfile(1L, request);
+
+        assertThat(response.getMobileNumber()).isEqualTo("+919876543210");
+        assertThat(response.isMobileVerified()).isFalse();
+        verify(mobileOtpService).sendOtpIfMobileNumberPresent(user);
+    }
+
+    @Test
+    void updateProfile_doesNotSendOtp_whenMobileNumberUnchanged() {
+        User user = User.signupWithEmail("user1@example.com", "hashed-password", "User 1", "+919876543210");
+        ReflectionTestUtils.setField(user, "id", 1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("Jane Doe");
+        request.setDefaultCurrency("INR");
+        request.setMobileNumber("+919876543210"); // same number
+
+        userService.updateProfile(1L, request);
+
+        verifyNoInteractions(mobileOtpService);
+    }
+
+    @Test
+    void updateProfile_resetsMobileVerifiedStatus_whenNumberChanges() {
+        User user = User.signupWithEmail("user1@example.com", "hashed-password", "User 1", "+919876543210");
+        ReflectionTestUtils.setField(user, "id", 1L);
+        user.setMobileVerifiedAt(java.time.LocalDateTime.now());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("Jane Doe");
+        request.setDefaultCurrency("INR");
+        request.setMobileNumber("+919999999999"); // different number
+
+        UserProfileResponse response = userService.updateProfile(1L, request);
+
+        assertThat(response.isMobileVerified()).isFalse();
+        verify(mobileOtpService).sendOtpIfMobileNumberPresent(user);
     }
 }

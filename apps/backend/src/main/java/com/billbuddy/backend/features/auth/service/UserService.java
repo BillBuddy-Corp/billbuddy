@@ -11,15 +11,19 @@ import com.billbuddy.backend.features.storage.service.FileService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final FileService fileService;
+    private final MobileOtpService mobileOtpService;
 
-    public UserService(UserRepository userRepository, FileService fileService) {
+    public UserService(UserRepository userRepository, FileService fileService, MobileOtpService mobileOtpService) {
         this.userRepository = userRepository;
         this.fileService = fileService;
+        this.mobileOtpService = mobileOtpService;
     }
 
     @Transactional
@@ -39,7 +43,11 @@ public class UserService {
                 ? null
                 : fileService.requireOwnedFile(request.getProfilePicFileId(), userId);
 
-        user.updateProfile(request.getFullName(), profilePicFile, currency);
+        boolean mobileNumberChanged = !Objects.equals(user.getMobileNumber(), request.getMobileNumber());
+        user.updateProfile(request.getFullName(), profilePicFile, currency, request.getMobileNumber());
+        if (mobileNumberChanged) {
+            mobileOtpService.sendOtpIfMobileNumberPresent(user);
+        }
 
         return toResponse(user);
     }
@@ -54,6 +62,7 @@ public class UserService {
                 user.getFullName(),
                 user.getEmail(),
                 user.getMobileNumber(),
+                user.getMobileVerifiedAt() != null,
                 profilePicUrl,
                 user.getDefaultCurrency(),
                 user.getCreatedAt()

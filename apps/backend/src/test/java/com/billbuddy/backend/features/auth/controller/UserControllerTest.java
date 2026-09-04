@@ -55,7 +55,7 @@ class UserControllerTest {
     }
 
     private UserProfileResponse sampleResponse() {
-        return new UserProfileResponse(1L, "Jane Doe", "jane@example.com", null, null, "INR", LocalDateTime.now());
+        return new UserProfileResponse(1L, "Jane Doe", "jane@example.com", null, false, null, "INR", LocalDateTime.now());
     }
 
     @Test

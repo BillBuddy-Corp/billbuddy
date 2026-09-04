@@ -59,12 +59,13 @@ Returns the authenticated user's profile.
   "fullName": "Jane Doe",
   "email": "jane@example.com",
   "mobileNumber": null,
+  "mobileVerified": false,
   "profilePicUrl": "/api/v1/files/42",
   "defaultCurrency": "INR",
   "createdAt": "2026-08-29T10:00:00"
 }
 ```
-`profilePicUrl` is `null` if no picture has been set.
+`profilePicUrl` is `null` if no picture has been set. `mobileVerified` is only ever `true` if `mobileNumber` is also set, see `auth.md` for the OTP flow that sets it.
 
 ---
 
@@ -76,16 +77,17 @@ Updates the authenticated user's own profile. Deliberately limited to safe, non-
 {
   "fullName": "Jane Doe",
   "profilePicFileId": 42,
-  "defaultCurrency": "INR"
+  "defaultCurrency": "INR",
+  "mobileNumber": "+919876543210"
 }
 ```
-`profilePicFileId` is optional — omit or set to `null` to remove the picture. `defaultCurrency` is validated as a real ISO 4217 code the same way group currencies are.
+`profilePicFileId` is optional — omit or set to `null` to remove the picture. `defaultCurrency` is validated as a real ISO 4217 code the same way group currencies are. `mobileNumber` is optional; changing it (including setting one for the first time) resets `mobileVerified` to `false` and automatically sends a fresh OTP, see `auth.md` for the verify-mobile flow that confirms it.
 
 **Response** `200 OK` — same shape as `GET /users/me`.
 
 Fails with `403 NOT_FILE_OWNER` if `profilePicFileId` references a file you didn't upload, `404 STORED_FILE_NOT_FOUND` if it doesn't exist, or `400 INVALID_CURRENCY` if `defaultCurrency` isn't a real code.
 
-**Not covered by this endpoint, on purpose**: `email`, `mobileNumber`, and `password`. Changing email/mobile should require re-verification, and there's no verification flow anywhere in this app yet — building an update path for them here would either be insecure or require building that flow first. Password changes belong in a dedicated `/auth/change-password` flow, not a generic profile update. Both remain open gaps, tracked as future Auth-hardening work rather than silently built half-safe.
+**Not covered by this endpoint, on purpose**: `email` and `password`. Changing email should require re-verification the same way mobile number changes now do, but there's no email-change flow built yet, building an update path here would either be insecure or require building that flow first. Password changes belong in a dedicated `/auth/change-password` flow, not a generic profile update. Both remain open gaps, tracked as future Auth-hardening work rather than silently built half-safe.
 
 ---
 
