@@ -4,6 +4,7 @@ import com.billbuddy.backend.config.SecurityConfig;
 import com.billbuddy.backend.features.auth.security.JwtService;
 import com.billbuddy.backend.features.expenses.dto.request.CreateExpenseRequest;
 import com.billbuddy.backend.features.expenses.dto.request.PayerEntry;
+import com.billbuddy.backend.features.expenses.dto.response.ExchangeRateResponse;
 import com.billbuddy.backend.features.expenses.dto.response.ExpenseResponse;
 import com.billbuddy.backend.features.expenses.model.SplitType;
 import com.billbuddy.backend.features.expenses.service.ExpenseService;
@@ -19,6 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -154,5 +156,27 @@ class ExpenseControllerTest {
                         .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void suggestExchangeRate_returns200() throws Exception {
+        stubValidAccessToken(1L);
+        when(expenseService.suggestExchangeRate(10L, 1L, "THB"))
+                .thenReturn(new ExchangeRateResponse("THB", "INR", new BigDecimal("2.51"), LocalDate.of(2026, 9, 4)));
+
+        mockMvc.perform(get("/api/v1/groups/10/expenses/exchange-rate")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("fromCurrency", "THB"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fromCurrency").value("THB"))
+                .andExpect(jsonPath("$.toCurrency").value("INR"))
+                .andExpect(jsonPath("$.rate").value(2.51));
+    }
+
+    @Test
+    void suggestExchangeRate_returns403_whenNoAuthorizationHeader() throws Exception {
+        mockMvc.perform(get("/api/v1/groups/10/expenses/exchange-rate")
+                        .param("fromCurrency", "THB"))
+                .andExpect(status().isForbidden());
     }
 }

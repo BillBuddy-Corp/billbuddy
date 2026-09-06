@@ -3,6 +3,7 @@ package com.billbuddy.backend.features.expenses.service;
 import com.billbuddy.backend.common.CurrencyUtil;
 import com.billbuddy.backend.exception.ExpenseNotFoundException;
 import com.billbuddy.backend.exception.GroupNotFoundException;
+import com.billbuddy.backend.exception.InvalidCurrencyException;
 import com.billbuddy.backend.exception.InvalidExpenseParticipantException;
 import com.billbuddy.backend.exception.InvalidSplitException;
 import com.billbuddy.backend.exception.NotExpenseOwnerException;
@@ -16,6 +17,7 @@ import com.billbuddy.backend.features.expenses.dto.request.ItemAssignmentEntry;
 import com.billbuddy.backend.features.expenses.dto.request.PayerEntry;
 import com.billbuddy.backend.features.expenses.dto.request.PercentageEntry;
 import com.billbuddy.backend.features.expenses.dto.request.UpdateExpenseRequest;
+import com.billbuddy.backend.features.expenses.dto.response.ExchangeRateResponse;
 import com.billbuddy.backend.features.expenses.dto.response.ExpenseItemAssignmentResponse;
 import com.billbuddy.backend.features.expenses.dto.response.ExpenseItemResponse;
 import com.billbuddy.backend.features.expenses.dto.response.ExpensePayerResponse;
@@ -45,6 +47,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -66,6 +69,7 @@ public class ExpenseService {
     private final UserRepository userRepository;
     private final GroupAccessService groupAccessService;
     private final FileService fileService;
+    private final ExchangeRateService exchangeRateService;
 
     public ExpenseService(
             ExpenseRepository expenseRepository,
@@ -77,7 +81,8 @@ public class ExpenseService {
             GroupMemberRepository groupMemberRepository,
             UserRepository userRepository,
             GroupAccessService groupAccessService,
-            FileService fileService
+            FileService fileService,
+            ExchangeRateService exchangeRateService
     ) {
         this.expenseRepository = expenseRepository;
         this.expensePayerRepository = expensePayerRepository;
@@ -89,6 +94,7 @@ public class ExpenseService {
         this.userRepository = userRepository;
         this.groupAccessService = groupAccessService;
         this.fileService = fileService;
+        this.exchangeRateService = exchangeRateService;
     }
 
     @Transactional
@@ -100,12 +106,13 @@ public class ExpenseService {
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         ExpenseInput input = ExpenseInput.from(request);
-        String currency = validateCurrency(input.currency(), group);
+        CurrencyResolution resolved = resolveCurrency(input.currency(), input.exchangeRate(), group);
+        BigDecimal convertedAmount = toBaseCurrency(input.amount(), resolved.exchangeRate());
         StoredFile receiptFile = resolveReceiptFile(input.receiptFileId(), requesterId);
 
         Expense expense = Expense.create(
-                group, creator, input.description(), input.amount(), currency,
-                input.amount(), BigDecimal.ONE, input.category(), receiptFile, input.splitType()
+                group, creator, input.description(), input.amount(), resolved.currency(),
+                convertedAmount, resolved.exchangeRate(), input.category(), receiptFile, input.splitType()
         );
         expense = expenseRepository.save(expense);
 
@@ -141,7 +148,8 @@ public class ExpenseService {
 
         Group group = expense.getGroup();
         ExpenseInput input = ExpenseInput.from(request);
-        String currency = validateCurrency(input.currency(), group);
+        CurrencyResolution resolved = resolveCurrency(input.currency(), input.exchangeRate(), group);
+        BigDecimal convertedAmount = toBaseCurrency(input.amount(), resolved.exchangeRate());
         StoredFile receiptFile = resolveReceiptFile(input.receiptFileId(), requesterId);
 
         // FK-safe delete order: assignments -> items -> payers/splits
@@ -151,13 +159,30 @@ public class ExpenseService {
         expenseSplitRepository.deleteByExpense_Id(expenseId);
 
         expense.update(
-                input.description(), input.amount(), currency, input.amount(),
-                BigDecimal.ONE, input.category(), receiptFile, input.splitType()
+                input.description(), input.amount(), resolved.currency(), convertedAmount,
+                resolved.exchangeRate(), input.category(), receiptFile, input.splitType()
         );
 
         persistSplit(expense, group, input);
 
         return toResponse(expense);
+    }
+
+    @Transactional
+    public ExchangeRateResponse suggestExchangeRate(Long groupId, Long requesterId, String fromCurrency) {
+        groupAccessService.requireActiveMember(groupId, requesterId);
+        Group group = groupRepository.findByIdAndDeletedAtIsNull(groupId)
+                .orElseThrow(() -> new GroupNotFoundException("Group not found"));
+
+        String normalized = CurrencyUtil.normalize(fromCurrency);
+        String groupCurrency = group.getDefaultCurrency();
+
+        if (normalized.equals(groupCurrency)) {
+            return new ExchangeRateResponse(normalized, groupCurrency, BigDecimal.ONE, LocalDate.now());
+        }
+
+        ExchangeRateService.ExchangeRateQuote quote = exchangeRateService.getRate(normalized, groupCurrency);
+        return new ExchangeRateResponse(normalized, groupCurrency, quote.rate(), quote.asOf());
     }
 
     @Transactional
@@ -256,7 +281,7 @@ public class ExpenseService {
 
         List<ExpensePayer> entities = payers.stream()
                 .map(p -> ExpensePayer.create(
-                        expense, usersById.get(p.getUserId()), p.getAmountPaid().setScale(2, RoundingMode.HALF_UP)
+                        expense, usersById.get(p.getUserId()), toBaseCurrency(p.getAmountPaid(), expense.getExchangeRate())
                 ))
                 .toList();
         expensePayerRepository.saveAll(entities);
@@ -269,7 +294,7 @@ public class ExpenseService {
                 .map(e -> ExpenseSplit.create(
                         expense,
                         usersById.get(e.getKey()),
-                        e.getValue(),
+                        toBaseCurrency(e.getValue(), expense.getExchangeRate()),
                         percentagesByUser == null ? null : percentagesByUser.get(e.getKey())
                 ))
                 .toList();
@@ -302,8 +327,25 @@ public class ExpenseService {
 
     // ===================== HELPERS =====================
 
-    private String validateCurrency(String currency, Group group) {
-        return CurrencyUtil.normalizeAndRequireMatch(currency, group.getDefaultCurrency(), "Expense");
+    private CurrencyResolution resolveCurrency(String currency, BigDecimal exchangeRate, Group group) {
+        String normalized = CurrencyUtil.normalize(currency);
+        if (normalized.equals(group.getDefaultCurrency())) {
+            return new CurrencyResolution(normalized, BigDecimal.ONE);
+        }
+        if (exchangeRate == null || exchangeRate.signum() <= 0) {
+            throw new InvalidCurrencyException(
+                    "Expense currency (" + normalized + ") differs from the group's default currency ("
+                            + group.getDefaultCurrency() + "), a positive exchangeRate is required"
+            );
+        }
+        return new CurrencyResolution(normalized, exchangeRate);
+    }
+
+    private BigDecimal toBaseCurrency(BigDecimal amount, BigDecimal exchangeRate) {
+        return amount.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private record CurrencyResolution(String currency, BigDecimal exchangeRate) {
     }
 
     private StoredFile resolveReceiptFile(Long receiptFileId, Long requesterId) {
@@ -393,6 +435,7 @@ public class ExpenseService {
             String description,
             BigDecimal amount,
             String currency,
+            BigDecimal exchangeRate,
             String category,
             Long receiptFileId,
             SplitType splitType,
@@ -404,17 +447,17 @@ public class ExpenseService {
     ) {
         static ExpenseInput from(CreateExpenseRequest r) {
             return new ExpenseInput(
-                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getCategory(), r.getReceiptFileId(),
-                    r.getSplitType(), r.getPayers(), r.getParticipantUserIds(), r.getPercentages(),
-                    r.getExactAmounts(), r.getItems()
+                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getExchangeRate(), r.getCategory(),
+                    r.getReceiptFileId(), r.getSplitType(), r.getPayers(), r.getParticipantUserIds(),
+                    r.getPercentages(), r.getExactAmounts(), r.getItems()
             );
         }
 
         static ExpenseInput from(UpdateExpenseRequest r) {
             return new ExpenseInput(
-                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getCategory(), r.getReceiptFileId(),
-                    r.getSplitType(), r.getPayers(), r.getParticipantUserIds(), r.getPercentages(),
-                    r.getExactAmounts(), r.getItems()
+                    r.getDescription(), r.getAmount(), r.getCurrency(), r.getExchangeRate(), r.getCategory(),
+                    r.getReceiptFileId(), r.getSplitType(), r.getPayers(), r.getParticipantUserIds(),
+                    r.getPercentages(), r.getExactAmounts(), r.getItems()
             );
         }
     }

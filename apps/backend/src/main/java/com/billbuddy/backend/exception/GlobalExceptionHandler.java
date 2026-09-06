@@ -312,4 +312,14 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(FxRateLookupFailedException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleFxRateLookupFailed(FxRateLookupFailedException ex) {
+        return Map.of(
+                "error", "FX_RATE_LOOKUP_FAILED",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }
