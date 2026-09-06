@@ -52,6 +52,9 @@ claude:
   model: ${CLAUDE_MODEL:claude-sonnet-5}
   workspace-id: ${ANTHROPIC_WORKSPACE_ID:}
 
+fx:
+  base-url: ${FX_API_BASE_URL:https://api.frankfurter.dev/v1}
+
 app:
   join-link-base-url: ${JOIN_LINK_BASE_URL:http://localhost:3000/invites/join}
   reset-password-base-url: ${RESET_PASSWORD_BASE_URL:http://localhost:3000/auth/reset-password}

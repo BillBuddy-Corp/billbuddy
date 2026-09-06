@@ -1,6 +1,7 @@
 package com.billbuddy.backend.features.expenses.controller;
 
 import com.billbuddy.backend.features.expenses.dto.request.CreateExpenseRequest;
+import com.billbuddy.backend.features.expenses.dto.response.ExchangeRateResponse;
 import com.billbuddy.backend.features.expenses.dto.response.ExpenseResponse;
 import com.billbuddy.backend.features.expenses.service.ExpenseService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,5 +58,24 @@ public class ExpenseController {
             @PathVariable Long groupId
     ) {
         return ResponseEntity.ok(expenseService.listExpenses(groupId, userId));
+    }
+
+    @GetMapping("/exchange-rate")
+    @Operation(
+            summary = "Suggest an exchange rate",
+            description = "Suggests a live exchange rate from fromCurrency to the group's default currency, for the client to prefill and let the user confirm or override before creating an expense"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Exchange rate suggested successfully"),
+            @ApiResponse(responseCode = "400", description = "fromCurrency isn't a real currency code, or no rate could be found"),
+            @ApiResponse(responseCode = "403", description = "Not a member of this group"),
+            @ApiResponse(responseCode = "404", description = "Group not found")
+    })
+    public ResponseEntity<ExchangeRateResponse> suggestExchangeRate(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long groupId,
+            @RequestParam String fromCurrency
+    ) {
+        return ResponseEntity.ok(expenseService.suggestExchangeRate(groupId, userId, fromCurrency));
     }
 }

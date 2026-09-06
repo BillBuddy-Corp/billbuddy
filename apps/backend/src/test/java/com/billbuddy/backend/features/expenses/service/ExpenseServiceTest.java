@@ -13,8 +13,11 @@ import com.billbuddy.backend.features.expenses.dto.request.ExpenseItemEntry;
 import com.billbuddy.backend.features.expenses.dto.request.ItemAssignmentEntry;
 import com.billbuddy.backend.features.expenses.dto.request.PayerEntry;
 import com.billbuddy.backend.features.expenses.dto.request.UpdateExpenseRequest;
+import com.billbuddy.backend.features.expenses.dto.response.ExchangeRateResponse;
 import com.billbuddy.backend.features.expenses.dto.response.ExpenseResponse;
 import com.billbuddy.backend.features.expenses.model.Expense;
+import com.billbuddy.backend.features.expenses.model.ExpensePayer;
+import com.billbuddy.backend.features.expenses.model.ExpenseSplit;
 import com.billbuddy.backend.features.expenses.model.ExpenseItem;
 import com.billbuddy.backend.features.expenses.model.SplitType;
 import com.billbuddy.backend.features.expenses.repository.ExpenseItemAssignmentRepository;
@@ -36,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,6 +77,9 @@ class ExpenseServiceTest {
 
     @Mock
     private GroupAccessService groupAccessService;
+
+    @Mock
+    private ExchangeRateService exchangeRateService;
 
     @InjectMocks
     private ExpenseService expenseService;
@@ -180,6 +187,107 @@ class ExpenseServiceTest {
         PayerEntry payer = new PayerEntry();
         payer.setUserId(1L);
         payer.setAmountPaid(new BigDecimal("90"));
+        request.setPayers(List.of(payer));
+        request.setParticipantUserIds(List.of(1L));
+
+        assertThatThrownBy(() -> expenseService.createExpense(10L, 1L, request))
+                .isInstanceOf(InvalidCurrencyException.class);
+
+        verify(expenseRepository, never()).save(any());
+    }
+
+    @Test
+    void createExpense_succeedsWithDifferentCurrency_whenRateSupplied() {
+        User admin = buildUser(1L);
+        Group group = buildGroup(10L, admin, "INR");
+        GroupMember adminMembership = GroupMember.createAdmin(group, admin);
+
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(adminMembership);
+        when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(inv -> {
+            Expense e = inv.getArgument(0);
+            ReflectionTestUtils.setField(e, "id", 100L);
+            return e;
+        });
+        stubActiveMembers(10L, admin);
+
+        CreateExpenseRequest request = new CreateExpenseRequest();
+        request.setDescription("Bangkok dinner");
+        request.setAmount(new BigDecimal("100"));
+        request.setCurrency("THB");
+        request.setExchangeRate(new BigDecimal("2.5"));
+        request.setSplitType(SplitType.EQUAL);
+        PayerEntry payer = new PayerEntry();
+        payer.setUserId(1L);
+        payer.setAmountPaid(new BigDecimal("100"));
+        request.setPayers(List.of(payer));
+        request.setParticipantUserIds(List.of(1L));
+
+        ExpenseResponse response = expenseService.createExpense(10L, 1L, request);
+
+        assertThat(response.getCurrency()).isEqualTo("THB");
+        assertThat(response.getAmount()).isEqualByComparingTo("100");
+        assertThat(response.getExchangeRate()).isEqualByComparingTo("2.5");
+        assertThat(response.getConvertedAmount()).isEqualByComparingTo("250.00");
+
+        ArgumentCaptor<List<ExpensePayer>> payersCaptor = ArgumentCaptor.forClass(List.class);
+        verify(expensePayerRepository).saveAll(payersCaptor.capture());
+        assertThat(payersCaptor.getValue().get(0).getAmountPaid()).isEqualByComparingTo("250.00");
+
+        ArgumentCaptor<List<ExpenseSplit>> splitsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(expenseSplitRepository).saveAll(splitsCaptor.capture());
+        assertThat(splitsCaptor.getValue().get(0).getAmountOwed()).isEqualByComparingTo("250.00");
+
+        verifyNoInteractions(exchangeRateService);
+    }
+
+    @Test
+    void createExpense_throwsInvalidCurrency_whenDifferentCurrencyAndNoRateSupplied() {
+        User admin = buildUser(1L);
+        Group group = buildGroup(10L, admin, "INR");
+        GroupMember adminMembership = GroupMember.createAdmin(group, admin);
+
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(adminMembership);
+        when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        CreateExpenseRequest request = new CreateExpenseRequest();
+        request.setDescription("Bangkok dinner");
+        request.setAmount(new BigDecimal("100"));
+        request.setCurrency("THB");
+        request.setSplitType(SplitType.EQUAL);
+        PayerEntry payer = new PayerEntry();
+        payer.setUserId(1L);
+        payer.setAmountPaid(new BigDecimal("100"));
+        request.setPayers(List.of(payer));
+        request.setParticipantUserIds(List.of(1L));
+
+        assertThatThrownBy(() -> expenseService.createExpense(10L, 1L, request))
+                .isInstanceOf(InvalidCurrencyException.class);
+
+        verify(expenseRepository, never()).save(any());
+    }
+
+    @Test
+    void createExpense_throwsInvalidCurrency_whenRateNotPositive() {
+        User admin = buildUser(1L);
+        Group group = buildGroup(10L, admin, "INR");
+        GroupMember adminMembership = GroupMember.createAdmin(group, admin);
+
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(adminMembership);
+        when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        CreateExpenseRequest request = new CreateExpenseRequest();
+        request.setDescription("Bangkok dinner");
+        request.setAmount(new BigDecimal("100"));
+        request.setCurrency("THB");
+        request.setExchangeRate(BigDecimal.ZERO);
+        request.setSplitType(SplitType.EQUAL);
+        PayerEntry payer = new PayerEntry();
+        payer.setUserId(1L);
+        payer.setAmountPaid(new BigDecimal("100"));
         request.setPayers(List.of(payer));
         request.setParticipantUserIds(List.of(1L));
 
@@ -472,5 +580,52 @@ class ExpenseServiceTest {
 
         assertThatThrownBy(() -> expenseService.deleteExpense(100L, 1L))
                 .isInstanceOf(ExpenseNotFoundException.class);
+    }
+
+    // ===================== SUGGEST EXCHANGE RATE =====================
+
+    @Test
+    void suggestExchangeRate_shortCircuitsToOne_whenSameCurrency() {
+        User admin = buildUser(1L);
+        Group group = buildGroup(10L, admin, "INR");
+
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(GroupMember.createAdmin(group, admin));
+        when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
+
+        ExchangeRateResponse response = expenseService.suggestExchangeRate(10L, 1L, "inr");
+
+        assertThat(response.getFromCurrency()).isEqualTo("INR");
+        assertThat(response.getToCurrency()).isEqualTo("INR");
+        assertThat(response.getRate()).isEqualByComparingTo("1");
+        assertThat(response.getAsOf()).isEqualTo(LocalDate.now());
+        verifyNoInteractions(exchangeRateService);
+    }
+
+    @Test
+    void suggestExchangeRate_delegatesToProvider_whenDifferentCurrency() {
+        User admin = buildUser(1L);
+        Group group = buildGroup(10L, admin, "INR");
+        LocalDate asOf = LocalDate.of(2026, 9, 4);
+
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(GroupMember.createAdmin(group, admin));
+        when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
+        when(exchangeRateService.getRate("THB", "INR"))
+                .thenReturn(new ExchangeRateService.ExchangeRateQuote(new BigDecimal("2.51"), asOf));
+
+        ExchangeRateResponse response = expenseService.suggestExchangeRate(10L, 1L, "thb");
+
+        assertThat(response.getFromCurrency()).isEqualTo("THB");
+        assertThat(response.getToCurrency()).isEqualTo("INR");
+        assertThat(response.getRate()).isEqualByComparingTo("2.51");
+        assertThat(response.getAsOf()).isEqualTo(asOf);
+    }
+
+    @Test
+    void suggestExchangeRate_throwsGroupNotFound_whenGroupMissing() {
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(GroupMember.createMember(null, buildUser(1L)));
+        when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> expenseService.suggestExchangeRate(10L, 1L, "THB"))
+                .isInstanceOf(GroupNotFoundException.class);
     }
 }

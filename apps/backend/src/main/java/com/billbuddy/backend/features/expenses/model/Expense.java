@@ -43,7 +43,7 @@ public class Expense {
     @Column(name = "converted_amount", nullable = false)
     private BigDecimal convertedAmount;
 
-    @Column(name = "exchange_rate", nullable = false)
+    @Column(name = "exchange_rate", nullable = false, precision = 10, scale = 6)
     private BigDecimal exchangeRate;
 
     @Column
