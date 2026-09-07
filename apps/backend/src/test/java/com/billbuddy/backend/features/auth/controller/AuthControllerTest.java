@@ -8,6 +8,7 @@ import com.billbuddy.backend.exception.MobileNumberNotSetException;
 import com.billbuddy.backend.exception.UserAlreadyExistsException;
 import com.billbuddy.backend.features.auth.dto.request.ChangePasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.ForgotPasswordRequest;
+import com.billbuddy.backend.features.auth.dto.request.GoogleSignInRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
 import com.billbuddy.backend.features.auth.dto.request.LogoutRequest;
 import com.billbuddy.backend.features.auth.dto.request.ResetPasswordRequest;
@@ -163,6 +164,67 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ===================== GOOGLE SIGN-IN =====================
+
+    @Test
+    void signInWithGoogle_returns200WithTokens_whenValid() throws Exception {
+        GoogleSignInRequest request = new GoogleSignInRequest();
+        request.setIdToken("valid-id-token");
+        request.setDeviceId("device-abc");
+
+        when(authService.signInWithGoogle(any(), any())).thenReturn(
+                new LoginResponse("Bearer", "access-token", "refresh-token", 1L, "jane@example.com", "Jane Doe")
+        );
+
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("access-token"));
+    }
+
+    @Test
+    void signInWithGoogle_returns401_whenTokenInvalid() throws Exception {
+        GoogleSignInRequest request = new GoogleSignInRequest();
+        request.setIdToken("bad-token");
+        request.setDeviceId("device-abc");
+
+        when(authService.signInWithGoogle(any(), any()))
+                .thenThrow(new InvalidCredentialsException("Invalid Google token"));
+
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void signInWithGoogle_returns409_whenEmailBelongsToPasswordAccount() throws Exception {
+        GoogleSignInRequest request = new GoogleSignInRequest();
+        request.setIdToken("valid-id-token");
+        request.setDeviceId("device-abc");
+
+        when(authService.signInWithGoogle(any(), any()))
+                .thenThrow(new UserAlreadyExistsException("This email is already registered with a password. Please log in with your password instead."));
+
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void signInWithGoogle_returns400_whenIdTokenBlank() throws Exception {
+        GoogleSignInRequest request = new GoogleSignInRequest();
+        request.setIdToken("");
+        request.setDeviceId("device-abc");
+
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 
     // ===================== LOGOUT =====================

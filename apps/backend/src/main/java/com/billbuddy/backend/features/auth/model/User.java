@@ -74,7 +74,8 @@ public class User {
             String fullName,
             String mobileNumber,
             AuthProvider authProvider,
-            String defaultCurrency
+            String defaultCurrency,
+            LocalDateTime emailVerifiedAt
     ) {
         this.email = email;
         this.passwordHash = passwordHash;
@@ -82,6 +83,7 @@ public class User {
         this.mobileNumber = mobileNumber;
         this.authProvider = authProvider;
         this.defaultCurrency = defaultCurrency;
+        this.emailVerifiedAt = emailVerifiedAt;
     }
 
     public static User signupWithEmail(
@@ -97,6 +99,16 @@ public class User {
                 .mobileNumber(mobileNumber)
                 .authProvider(AuthProvider.EMAIL)
                 .defaultCurrency("INR")
+                .build();
+    }
+
+    public static User signupWithGoogle(String email, String fullName) {
+        return User.builder()
+                .email(email)
+                .fullName(fullName)
+                .authProvider(AuthProvider.GOOGLE)
+                .defaultCurrency("INR")
+                .emailVerifiedAt(LocalDateTime.now())
                 .build();
     }
 

@@ -60,6 +60,25 @@ Authenticate and receive tokens. Logging in again on the same `deviceId` revokes
 
 ---
 
+### `POST /auth/google`
+Signs in with Google. The client performs "Sign in with Google" itself via Google's own SDK, then sends the resulting ID token here, there's no redirect/callback handled by this backend. Logs into an existing Google-linked account, or creates one on first sign-in, either way returning the same token shape as `POST /auth/login`.
+
+**Request**
+```json
+{
+  "idToken": "eyJ...",
+  "deviceId": "device-abc",
+  "deviceName": "iPhone 15"
+}
+```
+`idToken` is the raw Google-signed JWT from the client's sign-in SDK, not one of our own tokens. `deviceName` optional, same as `login`.
+
+**Response** `200 OK` — same shape as `POST /auth/login`.
+
+Fails with `401 INVALID_CREDENTIALS` if the token is invalid/expired/wrong-audience, or if Google reports the account's email as unverified, or `409 USER_ALREADY_EXISTS` if the email is already registered on a password-based account (sign in with the password instead, accounts aren't auto-linked by matching email).
+
+---
+
 ### `POST /auth/refreshtoken`
 Exchange a refresh token for a new access + refresh pair. The old refresh token is revoked (rotation) — reusing it fails.
 
@@ -268,8 +287,8 @@ Fails with `400 MOBILE_NUMBER_NOT_SET` if the account has no mobile number on fi
 
 | `error` | Status | Cause |
 |---|---|---|
-| `USER_ALREADY_EXISTS` | 409 | signup email already registered |
-| `INVALID_CREDENTIALS` | 401 | wrong login password, invalid/expired/revoked refresh token, or wrong `currentPassword` on change-password |
+| `USER_ALREADY_EXISTS` | 409 | signup email already registered, or Google sign-in with an email already registered on a password-based account |
+| `INVALID_CREDENTIALS` | 401 | wrong login password, invalid/expired/revoked refresh token, wrong `currentPassword` on change-password, or an invalid/unverified Google token on Google sign-in |
 | `INVALID_AUTH_TOKEN` | 400 | a password reset or email verification token is missing, expired, revoked, or already used |
 | `INVALID_OTP` | 400 | the mobile verification code is wrong, expired, already used, or attempts are exhausted |
 | `MOBILE_NUMBER_NOT_SET` | 400 | requested a mobile verification code with no mobile number on the account |

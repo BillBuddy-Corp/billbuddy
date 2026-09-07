@@ -3,11 +3,13 @@ package com.billbuddy.backend.features.auth.service;
 import com.billbuddy.backend.exception.InvalidCredentialsException;
 import com.billbuddy.backend.exception.UserAlreadyExistsException;
 import com.billbuddy.backend.exception.UserNotFoundException;
+import com.billbuddy.backend.features.auth.dto.request.GoogleSignInRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
 import com.billbuddy.backend.features.auth.dto.request.SignupRequest;
 import com.billbuddy.backend.features.auth.dto.response.LoginResponse;
 import com.billbuddy.backend.features.auth.dto.response.SessionResponse;
 import com.billbuddy.backend.features.auth.dto.response.SignupResponse;
+import com.billbuddy.backend.features.auth.model.AuthProvider;
 import com.billbuddy.backend.features.auth.model.RefreshToken;
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.auth.repository.RefreshTokenRepository;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -34,6 +37,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthTokenService authTokenService;
     private final MobileOtpService mobileOtpService;
+    private final GoogleTokenVerifier googleTokenVerifier;
 
     @Value("${jwt.refresh-token-expiry-days}")
     private int refreshTokenExpiryDays;
@@ -44,7 +48,8 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             AuthTokenService authTokenService,
-            MobileOtpService mobileOtpService
+            MobileOtpService mobileOtpService,
+            GoogleTokenVerifier googleTokenVerifier
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -52,6 +57,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.authTokenService = authTokenService;
         this.mobileOtpService = mobileOtpService;
+        this.googleTokenVerifier = googleTokenVerifier;
     }
 
     // ===================== SIGNUP =====================
@@ -105,41 +111,72 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
+        LoginResponse response = issueTokens(user, request.getDeviceId(), request.getDeviceName(), httpRequest);
+
+        log.info("Login successful, userId={}, deviceId={}",
+                user.getId(), request.getDeviceId());
+
+        return response;
+    }
+
+    // ===================== GOOGLE SIGN-IN =====================
+
+    @Transactional
+    public LoginResponse signInWithGoogle(GoogleSignInRequest request, HttpServletRequest httpRequest) {
+        GoogleTokenVerifier.GoogleUserInfo googleUser = googleTokenVerifier.verify(request.getIdToken());
+
+        if (!googleUser.emailVerified()) {
+            throw new InvalidCredentialsException("Google account email is not verified");
+        }
+
+        String email = normalizeEmail(googleUser.email());
+        Optional<User> existing = userRepository.findByEmail(email);
+
+        User user;
+        if (existing.isPresent()) {
+            user = existing.get();
+            if (user.getAuthProvider() != AuthProvider.GOOGLE) {
+                throw new UserAlreadyExistsException(
+                        "This email is already registered with a password. Please log in with your password instead."
+                );
+            }
+        } else {
+            user = userRepository.save(User.signupWithGoogle(email, googleUser.fullName()));
+            log.info("Google signup successful, userId={}", user.getId());
+        }
+
+        LoginResponse response = issueTokens(user, request.getDeviceId(), request.getDeviceName(), httpRequest);
+
+        log.info("Google sign-in successful, userId={}, deviceId={}", user.getId(), request.getDeviceId());
+
+        return response;
+    }
+
+    private LoginResponse issueTokens(User user, String deviceId, String deviceName, HttpServletRequest httpRequest) {
         user.setLastLoginAt(LocalDateTime.now());
 
-        // Tokens
-        String accessToken =
-                jwtService.generateAccessToken(user.getId(), user.getEmail());
+        String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail());
+        String rawRefreshToken = jwtService.generateRefreshToken(user.getId());
+        String refreshTokenHash = jwtService.hashToken(rawRefreshToken);
 
-        String rawRefreshToken =
-                jwtService.generateRefreshToken(user.getId());
-
-        String refreshTokenHash =
-                jwtService.hashToken(rawRefreshToken);
-
-        // Device metadata
         String ipAddress = extractClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
 
         // One active session per device
-        refreshTokenRepository
-                .revokeActiveByUserIdAndDeviceId(user.getId(), request.getDeviceId());
+        refreshTokenRepository.revokeActiveByUserIdAndDeviceId(user.getId(), deviceId);
 
         RefreshToken session = RefreshToken.create(
                 user,
                 refreshTokenHash,
                 LocalDateTime.now().plusDays(refreshTokenExpiryDays),
-                request.getDeviceId(),
-                request.getDeviceName(),
+                deviceId,
+                deviceName,
                 ipAddress,
                 userAgent
         );
 
         refreshTokenRepository.save(session);
         userRepository.save(user);
-
-        log.info("Login successful, userId={}, deviceId={}",
-                user.getId(), request.getDeviceId());
 
         return new LoginResponse(
                 "Bearer",
