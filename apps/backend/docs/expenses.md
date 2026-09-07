@@ -140,6 +140,45 @@ Fails with `403 NOT_EXPENSE_OWNER` under the same rule as edit.
 
 ---
 
+### `POST /expenses/{expenseId}/comments`
+Posts a comment on the expense. Caller must be an active member of the expense's group. Comments are post-and-delete only — there's no edit endpoint, delete and repost instead.
+
+**Request**
+```json
+{ "body": "Looks right to me" }
+```
+`body` is required, max 2000 characters.
+
+**Response** `201 Created`
+```json
+{
+  "id": 1,
+  "expenseId": 10,
+  "body": "Looks right to me",
+  "authorUserId": 1,
+  "authorName": "Jane Doe",
+  "createdAt": "2026-09-07T09:00:00"
+}
+```
+
+---
+
+### `GET /expenses/{expenseId}/comments`
+Lists all comments on the expense, oldest first. Caller must be an active member of the expense's group.
+
+**Response** `200 OK` — array of the same shape as the create response.
+
+---
+
+### `DELETE /expenses/{expenseId}/comments/{commentId}`
+Deletes a comment. Only the comment's author or a group Admin may delete.
+
+**Response** `204 No Content`
+
+Fails with `403 NOT_EXPENSE_COMMENT_OWNER` if the caller is neither the comment's author nor a group Admin, or `404 EXPENSE_COMMENT_NOT_FOUND` if `commentId` doesn't exist or doesn't belong to `expenseId`.
+
+---
+
 ## Errors specific to Expenses
 
 | `error` | Status | Cause |
@@ -150,3 +189,5 @@ Fails with `403 NOT_EXPENSE_OWNER` under the same rule as edit.
 | `NOT_EXPENSE_OWNER` | 403 | caller is neither the expense's creator nor a group Admin, on edit/delete |
 | `INVALID_CURRENCY` | 400 | `currency`/`fromCurrency` isn't a real ISO 4217 code, or `currency` differs from the group's `defaultCurrency` with no positive `exchangeRate` given |
 | `FX_RATE_LOOKUP_FAILED` | 400 | no live exchange rate available for the requested currency pair |
+| `EXPENSE_COMMENT_NOT_FOUND` | 404 | comment id doesn't exist, or doesn't belong to the given expense |
+| `NOT_EXPENSE_COMMENT_OWNER` | 403 | caller is neither the comment's author nor a group Admin, on delete |
