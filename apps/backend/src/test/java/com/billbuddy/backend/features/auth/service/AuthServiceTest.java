@@ -3,11 +3,13 @@ package com.billbuddy.backend.features.auth.service;
 import com.billbuddy.backend.exception.InvalidCredentialsException;
 import com.billbuddy.backend.exception.UserAlreadyExistsException;
 import com.billbuddy.backend.exception.UserNotFoundException;
+import com.billbuddy.backend.features.auth.dto.request.GoogleSignInRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
 import com.billbuddy.backend.features.auth.dto.request.SignupRequest;
 import com.billbuddy.backend.features.auth.dto.response.LoginResponse;
 import com.billbuddy.backend.features.auth.dto.response.SessionResponse;
 import com.billbuddy.backend.features.auth.dto.response.SignupResponse;
+import com.billbuddy.backend.features.auth.model.AuthProvider;
 import com.billbuddy.backend.features.auth.model.RefreshToken;
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.auth.repository.RefreshTokenRepository;
@@ -32,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -60,6 +63,9 @@ class AuthServiceTest {
 
     @Mock
     private MobileOtpService mobileOtpService;
+
+    @Mock
+    private GoogleTokenVerifier googleTokenVerifier;
 
     @InjectMocks
     private AuthService authService;
@@ -222,6 +228,106 @@ class AuthServiceTest {
                 .hasMessage("Invalid email or password");
 
         verify(refreshTokenRepository, never()).save(any());
+    }
+
+    // ===================== GOOGLE SIGN-IN =====================
+
+    private GoogleSignInRequest buildGoogleRequest(String idToken) {
+        GoogleSignInRequest request = new GoogleSignInRequest();
+        request.setIdToken(idToken);
+        request.setDeviceId("device-abc");
+        request.setDeviceName("iPhone 15");
+        return request;
+    }
+
+    private void stubHttpRequestForTokenIssuance() {
+        when(httpRequest.getHeader("X-Forwarded-For")).thenReturn(null);
+        when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(httpRequest.getHeader("User-Agent")).thenReturn("Mozilla/5.0");
+    }
+
+    @Test
+    void signInWithGoogle_createsNewGoogleAccount_whenEmailNotRegistered() {
+        when(googleTokenVerifier.verify("valid-id-token"))
+                .thenReturn(new GoogleTokenVerifier.GoogleUserInfo("jane@example.com", true, "Jane Doe"));
+        when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            ReflectionTestUtils.setField(u, "id", 1L);
+            return u;
+        });
+        when(jwtService.generateAccessToken(1L, "jane@example.com")).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(1L)).thenReturn("raw-refresh-token");
+        when(jwtService.hashToken("raw-refresh-token")).thenReturn("hashed-refresh-token");
+        stubHttpRequestForTokenIssuance();
+
+        LoginResponse response = authService.signInWithGoogle(buildGoogleRequest("valid-id-token"), httpRequest);
+
+        assertThat(response.getAccessToken()).isEqualTo("access-token");
+        assertThat(response.getEmail()).isEqualTo("jane@example.com");
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(2)).save(userCaptor.capture());
+        User created = userCaptor.getAllValues().get(0);
+        assertThat(created.getAuthProvider()).isEqualTo(AuthProvider.GOOGLE);
+        assertThat(created.getFullName()).isEqualTo("Jane Doe");
+        assertThat(created.getPasswordHash()).isNull();
+        assertThat(created.getEmailVerifiedAt()).isNotNull();
+    }
+
+    @Test
+    void signInWithGoogle_logsIntoExistingGoogleAccount_withoutCreatingDuplicate() {
+        User existing = buildUser(1L, "jane@example.com", null);
+        ReflectionTestUtils.setField(existing, "authProvider", AuthProvider.GOOGLE);
+
+        when(googleTokenVerifier.verify("valid-id-token"))
+                .thenReturn(new GoogleTokenVerifier.GoogleUserInfo("jane@example.com", true, "Jane Doe"));
+        when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(existing));
+        when(jwtService.generateAccessToken(1L, "jane@example.com")).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(1L)).thenReturn("raw-refresh-token");
+        when(jwtService.hashToken("raw-refresh-token")).thenReturn("hashed-refresh-token");
+        stubHttpRequestForTokenIssuance();
+
+        LoginResponse response = authService.signInWithGoogle(buildGoogleRequest("valid-id-token"), httpRequest);
+
+        assertThat(response.getUserId()).isEqualTo(1L);
+        verify(userRepository, never()).save(argThat(u -> u != existing));
+    }
+
+    @Test
+    void signInWithGoogle_throwsUserAlreadyExists_whenEmailBelongsToPasswordAccount() {
+        User existing = buildUser(1L, "jane@example.com", "hashed-password");
+
+        when(googleTokenVerifier.verify("valid-id-token"))
+                .thenReturn(new GoogleTokenVerifier.GoogleUserInfo("jane@example.com", true, "Jane Doe"));
+        when(userRepository.findByEmail("jane@example.com")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> authService.signInWithGoogle(buildGoogleRequest("valid-id-token"), httpRequest))
+                .isInstanceOf(UserAlreadyExistsException.class);
+
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void signInWithGoogle_throwsInvalidCredentials_whenEmailNotVerifiedByGoogle() {
+        when(googleTokenVerifier.verify("valid-id-token"))
+                .thenReturn(new GoogleTokenVerifier.GoogleUserInfo("jane@example.com", false, "Jane Doe"));
+
+        assertThatThrownBy(() -> authService.signInWithGoogle(buildGoogleRequest("valid-id-token"), httpRequest))
+                .isInstanceOf(InvalidCredentialsException.class);
+
+        verify(userRepository, never()).findByEmail(any());
+    }
+
+    @Test
+    void signInWithGoogle_propagatesException_whenTokenInvalid() {
+        when(googleTokenVerifier.verify("bad-token"))
+                .thenThrow(new InvalidCredentialsException("Invalid Google token"));
+
+        assertThatThrownBy(() -> authService.signInWithGoogle(buildGoogleRequest("bad-token"), httpRequest))
+                .isInstanceOf(InvalidCredentialsException.class);
+
+        verify(userRepository, never()).findByEmail(any());
     }
 
     // ===================== REFRESH =====================

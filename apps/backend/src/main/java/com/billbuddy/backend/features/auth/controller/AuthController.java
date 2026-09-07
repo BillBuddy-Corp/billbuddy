@@ -4,6 +4,7 @@ import com.billbuddy.backend.features.auth.dto.request.ChangeEmailRequest;
 import com.billbuddy.backend.features.auth.dto.request.ChangePasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.ConfirmEmailChangeRequest;
 import com.billbuddy.backend.features.auth.dto.request.ForgotPasswordRequest;
+import com.billbuddy.backend.features.auth.dto.request.GoogleSignInRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
 import com.billbuddy.backend.features.auth.dto.request.LogoutRequest;
 import com.billbuddy.backend.features.auth.dto.request.RefreshTokenRequest;
@@ -83,6 +84,24 @@ public class AuthController {
         LoginResponse response = authService.login(request,httpRequest);
         System.out.println("LOGIN RESPONSE CLASS = " + response.getClass());
         System.out.println("ACCESS TOKEN = " + response.getAccessToken());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google")
+    @Operation(
+            summary = "Sign in with Google",
+            description = "Verifies a Google ID token obtained by the client's own Google Sign-In SDK, then logs into an existing Google-linked account or creates a new one, issuing our own JWT tokens"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Sign-in successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid Google token, or the Google account's email isn't verified"),
+            @ApiResponse(responseCode = "409", description = "Email is already registered with a password")
+    })
+    public ResponseEntity<LoginResponse> signInWithGoogle(
+            @Valid @RequestBody GoogleSignInRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        LoginResponse response = authService.signInWithGoogle(request, httpRequest);
         return ResponseEntity.ok(response);
     }
 

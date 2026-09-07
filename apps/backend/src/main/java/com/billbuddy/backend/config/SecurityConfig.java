@@ -35,6 +35,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
+                                "/api/v1/auth/google",
                                 "/api/v1/auth/refreshtoken",
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password",

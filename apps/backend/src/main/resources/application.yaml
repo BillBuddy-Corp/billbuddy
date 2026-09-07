@@ -32,6 +32,9 @@ jwt:
   access-token-expiry-minutes: ${JWT_EXPIRATION_MINUTES}
   refresh-token-expiry-days: ${JWT_REFRESH_TOKEN_EXPIRY_DAYS}
 
+google:
+  client-id: ${GOOGLE_CLIENT_ID}
+
 invite:
   email-expiry-days: ${INVITE_EMAIL_EXPIRY_DAYS:7}
 

@@ -28,6 +28,9 @@ jwt:
   access-token-expiry-minutes: 15
   refresh-token-expiry-days: 30
 
+google:
+  client-id: test-client-id-not-used-by-mocked-verifier
+
 invite:
   email-expiry-days: 7
 
