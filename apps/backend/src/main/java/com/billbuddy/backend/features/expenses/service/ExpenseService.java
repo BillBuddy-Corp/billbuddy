@@ -40,6 +40,7 @@ import com.billbuddy.backend.features.groups.model.GroupRole;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
 import com.billbuddy.backend.features.groups.service.GroupAccessService;
+import com.billbuddy.backend.features.notifications.service.NotificationService;
 import com.billbuddy.backend.features.storage.model.StoredFile;
 import com.billbuddy.backend.features.storage.service.FileService;
 import jakarta.transaction.Transactional;
@@ -70,6 +71,7 @@ public class ExpenseService {
     private final GroupAccessService groupAccessService;
     private final FileService fileService;
     private final ExchangeRateService exchangeRateService;
+    private final NotificationService notificationService;
 
     public ExpenseService(
             ExpenseRepository expenseRepository,
@@ -82,7 +84,8 @@ public class ExpenseService {
             UserRepository userRepository,
             GroupAccessService groupAccessService,
             FileService fileService,
-            ExchangeRateService exchangeRateService
+            ExchangeRateService exchangeRateService,
+            NotificationService notificationService
     ) {
         this.expenseRepository = expenseRepository;
         this.expensePayerRepository = expensePayerRepository;
@@ -95,6 +98,7 @@ public class ExpenseService {
         this.groupAccessService = groupAccessService;
         this.fileService = fileService;
         this.exchangeRateService = exchangeRateService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -117,6 +121,7 @@ public class ExpenseService {
         expense = expenseRepository.save(expense);
 
         persistSplit(expense, group, input);
+        notificationService.notifyExpenseCreated(expense, requesterId);
 
         return toResponse(expense);
     }

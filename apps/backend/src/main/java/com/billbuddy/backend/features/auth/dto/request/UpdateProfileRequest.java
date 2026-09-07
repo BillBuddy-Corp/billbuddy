@@ -24,4 +24,7 @@ public class UpdateProfileRequest {
             message = "Mobile number must be in international format (e.g. +919876543210)"
     )
     private String mobileNumber;
+
+    // optional; omit to leave the currently registered device token unchanged
+    private String fcmToken;
 }

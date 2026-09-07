@@ -44,7 +44,7 @@ public class UserService {
                 : fileService.requireOwnedFile(request.getProfilePicFileId(), userId);
 
         boolean mobileNumberChanged = !Objects.equals(user.getMobileNumber(), request.getMobileNumber());
-        user.updateProfile(request.getFullName(), profilePicFile, currency, request.getMobileNumber());
+        user.updateProfile(request.getFullName(), profilePicFile, currency, request.getMobileNumber(), request.getFcmToken());
         if (mobileNumberChanged) {
             mobileOtpService.sendOtpIfMobileNumberPresent(user);
         }

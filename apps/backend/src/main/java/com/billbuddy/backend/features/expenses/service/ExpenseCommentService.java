@@ -15,6 +15,7 @@ import com.billbuddy.backend.features.expenses.repository.ExpenseRepository;
 import com.billbuddy.backend.features.groups.model.GroupMember;
 import com.billbuddy.backend.features.groups.model.GroupRole;
 import com.billbuddy.backend.features.groups.service.GroupAccessService;
+import com.billbuddy.backend.features.notifications.service.NotificationService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -27,17 +28,20 @@ public class ExpenseCommentService {
     private final ExpenseRepository expenseRepository;
     private final UserRepository userRepository;
     private final GroupAccessService groupAccessService;
+    private final NotificationService notificationService;
 
     public ExpenseCommentService(
             ExpenseCommentRepository expenseCommentRepository,
             ExpenseRepository expenseRepository,
             UserRepository userRepository,
-            GroupAccessService groupAccessService
+            GroupAccessService groupAccessService,
+            NotificationService notificationService
     ) {
         this.expenseCommentRepository = expenseCommentRepository;
         this.expenseRepository = expenseRepository;
         this.userRepository = userRepository;
         this.groupAccessService = groupAccessService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -49,6 +53,7 @@ public class ExpenseCommentService {
 
         ExpenseComment comment = ExpenseComment.create(expense, author, request.getBody());
         comment = expenseCommentRepository.save(comment);
+        notificationService.notifyCommentPosted(comment, requesterId);
 
         return toResponse(comment);
     }

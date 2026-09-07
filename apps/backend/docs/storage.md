@@ -78,10 +78,11 @@ Updates the authenticated user's own profile. Deliberately limited to safe, non-
   "fullName": "Jane Doe",
   "profilePicFileId": 42,
   "defaultCurrency": "INR",
-  "mobileNumber": "+919876543210"
+  "mobileNumber": "+919876543210",
+  "fcmToken": "device-push-token"
 }
 ```
-`profilePicFileId` is optional — omit or set to `null` to remove the picture. `defaultCurrency` is validated as a real ISO 4217 code the same way group currencies are. `mobileNumber` is optional; changing it (including setting one for the first time) resets `mobileVerified` to `false` and automatically sends a fresh OTP, see `auth.md` for the verify-mobile flow that confirms it.
+`profilePicFileId` is optional — omit or set to `null` to remove the picture. `defaultCurrency` is validated as a real ISO 4217 code the same way group currencies are. `mobileNumber` is optional; changing it (including setting one for the first time) resets `mobileVerified` to `false` and automatically sends a fresh OTP, see `auth.md` for the verify-mobile flow that confirms it. `fcmToken` is optional and write-only (never echoed back) — registers the calling device for push notifications; unlike the other fields, omitting it leaves whatever's currently registered unchanged rather than clearing it, since it's refreshed independently by the client's own push SDK, not something edited in a profile form. See `notifications.md` for what actually gets sent.
 
 **Response** `200 OK` — same shape as `GET /users/me`.
 

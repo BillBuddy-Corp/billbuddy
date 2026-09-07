@@ -100,13 +100,19 @@ public class User {
                 .build();
     }
 
-    public void updateProfile(String fullName, StoredFile profilePicFile, String defaultCurrency, String mobileNumber) {
+    public void updateProfile(String fullName, StoredFile profilePicFile, String defaultCurrency, String mobileNumber, String fcmToken) {
         this.fullName = fullName;
         this.profilePicFile = profilePicFile;
         this.defaultCurrency = defaultCurrency;
         if (!Objects.equals(this.mobileNumber, mobileNumber)) {
             this.mobileNumber = mobileNumber;
             this.mobileVerifiedAt = null;
+        }
+        // preserved when omitted -- unlike the other fields here, this isn't something a human
+        // edits in a profile form, it's refreshed independently by the client's own push SDK, so
+        // a routine name/currency update must not silently wipe an already-registered device
+        if (fcmToken != null) {
+            this.fcmToken = fcmToken;
         }
     }
 
