@@ -322,4 +322,34 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidRecurrenceException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidRecurrence(InvalidRecurrenceException ex) {
+        return Map.of(
+                "error", "INVALID_RECURRENCE",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(RecurringExpenseNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleRecurringExpenseNotFound(RecurringExpenseNotFoundException ex) {
+        return Map.of(
+                "error", "RECURRING_EXPENSE_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(NotRecurringExpenseOwnerException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleNotRecurringExpenseOwner(NotRecurringExpenseOwnerException ex) {
+        return Map.of(
+                "error", "NOT_RECURRING_EXPENSE_OWNER",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }
