@@ -48,4 +48,16 @@ public class EmailService {
         );
         mailSender.send(message);
     }
+
+    public void sendEmailChangeConfirmationEmail(String to, String confirmLink) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Confirm your new BillBuddy email");
+        message.setText(
+                "We received a request to change the email on a BillBuddy account to this address.\n\n" +
+                        "Confirm here: " + confirmLink + "\n\n" +
+                        "If you didn't request this, you can ignore this email."
+        );
+        mailSender.send(message);
+    }
 }

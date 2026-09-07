@@ -4,6 +4,7 @@ import com.billbuddy.backend.common.EmailService;
 import com.billbuddy.backend.common.TokenGeneratorUtil;
 import com.billbuddy.backend.exception.InvalidAuthTokenException;
 import com.billbuddy.backend.exception.InvalidCredentialsException;
+import com.billbuddy.backend.exception.UserAlreadyExistsException;
 import com.billbuddy.backend.exception.UserNotFoundException;
 import com.billbuddy.backend.features.auth.model.AuthToken;
 import com.billbuddy.backend.features.auth.model.AuthTokenPurpose;
@@ -42,6 +43,12 @@ public class AuthTokenService {
 
     @Value("${app.verify-email-base-url}")
     private String verifyEmailBaseUrl;
+
+    @Value("${auth-token.email-change-expiry-minutes}")
+    private int emailChangeExpiryMinutes;
+
+    @Value("${app.email-change-base-url}")
+    private String emailChangeBaseUrl;
 
     public AuthTokenService(
             UserRepository userRepository,
@@ -173,6 +180,61 @@ public class AuthTokenService {
         token.markUsed();
 
         log.info("Email verified, userId={}", user.getId());
+    }
+
+    // ===================== EMAIL CHANGE =====================
+
+    @Transactional
+    public void requestEmailChange(Long userId, String rawNewEmail, String currentPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new InvalidCredentialsException("Current password is incorrect");
+        }
+
+        String newEmail = normalizeEmail(rawNewEmail);
+        if (userRepository.existsByEmail(newEmail)) {
+            throw new UserAlreadyExistsException("Email is already registered");
+        }
+
+        authTokenRepository.revokeActiveByUserIdAndPurpose(user.getId(), AuthTokenPurpose.EMAIL_CHANGE);
+        user.requestEmailChange(newEmail);
+
+        String rawToken = TokenGeneratorUtil.generate();
+        String tokenHash = TokenHashUtil.sha256(rawToken);
+        AuthToken token = AuthToken.create(
+                user, AuthTokenPurpose.EMAIL_CHANGE, tokenHash,
+                LocalDateTime.now().plusMinutes(emailChangeExpiryMinutes)
+        );
+        authTokenRepository.save(token);
+
+        String confirmLink = emailChangeBaseUrl + "?token=" + rawToken;
+        try {
+            emailService.sendEmailChangeConfirmationEmail(newEmail, confirmLink);
+        } catch (Exception ex) {
+            // see requestPasswordReset -- must not escape this transactional method
+            log.warn("Failed to send email change confirmation email, userId={}", user.getId(), ex);
+        }
+
+        log.info("Email change requested, userId={}", user.getId());
+    }
+
+    @Transactional
+    public void confirmEmailChange(String rawToken) {
+        AuthToken token = requireUsableToken(rawToken, AuthTokenPurpose.EMAIL_CHANGE);
+        User user = token.getUser();
+
+        if (userRepository.existsByEmail(user.getPendingEmail())) {
+            throw new UserAlreadyExistsException("Email is already registered");
+        }
+
+        user.confirmEmailChange();
+        token.markUsed();
+
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+
+        log.info("Email changed, userId={}", user.getId());
     }
 
     // ===================== HELPERS =====================

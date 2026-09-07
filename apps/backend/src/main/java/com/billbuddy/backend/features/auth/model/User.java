@@ -27,6 +27,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "pending_email")
+    private String pendingEmail;
+
     @Column(name = "mobile_number", unique = true)
     private String mobileNumber;
 
@@ -114,6 +117,16 @@ public class User {
         if (fcmToken != null) {
             this.fcmToken = fcmToken;
         }
+    }
+
+    public void requestEmailChange(String pendingEmail) {
+        this.pendingEmail = pendingEmail;
+    }
+
+    public void confirmEmailChange() {
+        this.email = this.pendingEmail;
+        this.pendingEmail = null;
+        this.emailVerifiedAt = LocalDateTime.now();
     }
 
 }

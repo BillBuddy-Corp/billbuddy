@@ -58,6 +58,7 @@ Returns the authenticated user's profile.
   "id": 1,
   "fullName": "Jane Doe",
   "email": "jane@example.com",
+  "pendingEmail": null,
   "mobileNumber": null,
   "mobileVerified": false,
   "profilePicUrl": "/api/v1/files/42",
@@ -65,7 +66,7 @@ Returns the authenticated user's profile.
   "createdAt": "2026-08-29T10:00:00"
 }
 ```
-`profilePicUrl` is `null` if no picture has been set. `mobileVerified` is only ever `true` if `mobileNumber` is also set, see `auth.md` for the OTP flow that sets it.
+`profilePicUrl` is `null` if no picture has been set. `mobileVerified` is only ever `true` if `mobileNumber` is also set, see `auth.md` for the OTP flow that sets it. `pendingEmail` is set while an email change is awaiting confirmation (`email` itself doesn't change until then), see `auth.md` for the change-email flow.
 
 ---
 
@@ -88,7 +89,7 @@ Updates the authenticated user's own profile. Deliberately limited to safe, non-
 
 Fails with `403 NOT_FILE_OWNER` if `profilePicFileId` references a file you didn't upload, `404 STORED_FILE_NOT_FOUND` if it doesn't exist, or `400 INVALID_CURRENCY` if `defaultCurrency` isn't a real code.
 
-**Not covered by this endpoint, on purpose**: `email` and `password`. Changing email should require re-verification the same way mobile number changes now do, but there's no email-change flow built yet, building an update path here would either be insecure or require building that flow first. Password changes belong in a dedicated `/auth/change-password` flow, not a generic profile update. Both remain open gaps, tracked as future Auth-hardening work rather than silently built half-safe.
+**Not covered by this endpoint, on purpose**: `email` and `password`. Email has its own confirm-before-change flow, `POST /auth/change-email` and `POST /auth/confirm-email-change` (see `auth.md`), since it's the account's login credential and needs re-verification before it actually takes effect, not a same-request field update. Password changes belong in the dedicated `/auth/change-password` flow, not a generic profile update.
 
 ---
 

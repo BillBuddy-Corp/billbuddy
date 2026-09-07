@@ -3,6 +3,7 @@ package com.billbuddy.backend.features.auth.service;
 import com.billbuddy.backend.common.EmailService;
 import com.billbuddy.backend.exception.InvalidAuthTokenException;
 import com.billbuddy.backend.exception.InvalidCredentialsException;
+import com.billbuddy.backend.exception.UserAlreadyExistsException;
 import com.billbuddy.backend.exception.UserNotFoundException;
 import com.billbuddy.backend.features.auth.model.AuthToken;
 import com.billbuddy.backend.features.auth.model.AuthTokenPurpose;
@@ -58,6 +59,8 @@ class AuthTokenServiceTest {
         ReflectionTestUtils.setField(authTokenService, "emailVerificationExpiryHours", 24);
         ReflectionTestUtils.setField(authTokenService, "resetPasswordBaseUrl", "http://localhost:3000/auth/reset-password");
         ReflectionTestUtils.setField(authTokenService, "verifyEmailBaseUrl", "http://localhost:3000/auth/verify-email");
+        ReflectionTestUtils.setField(authTokenService, "emailChangeExpiryMinutes", 60);
+        ReflectionTestUtils.setField(authTokenService, "emailChangeBaseUrl", "http://localhost:3000/auth/confirm-email-change");
     }
 
     private User buildUser(Long id, String email) {
@@ -306,5 +309,127 @@ class AuthTokenServiceTest {
 
         assertThatThrownBy(() -> authTokenService.verifyEmail("some-token"))
                 .isInstanceOf(InvalidAuthTokenException.class);
+    }
+
+    // ===================== REQUEST EMAIL CHANGE =====================
+
+    @Test
+    void requestEmailChange_createsTokenAndSendsEmailToNewAddress_whenPasswordCorrect() {
+        User user = buildUser(1L, "jane@example.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correctpassword", user.getPasswordHash())).thenReturn(true);
+        when(userRepository.existsByEmail("newemail@example.com")).thenReturn(false);
+
+        authTokenService.requestEmailChange(1L, "newemail@example.com", "correctpassword");
+
+        assertThat(user.getPendingEmail()).isEqualTo("newemail@example.com");
+        verify(authTokenRepository).revokeActiveByUserIdAndPurpose(1L, AuthTokenPurpose.EMAIL_CHANGE);
+
+        ArgumentCaptor<AuthToken> tokenCaptor = ArgumentCaptor.forClass(AuthToken.class);
+        verify(authTokenRepository).save(tokenCaptor.capture());
+        assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo(AuthTokenPurpose.EMAIL_CHANGE);
+
+        verify(emailService).sendEmailChangeConfirmationEmail(eq("newemail@example.com"), anyString());
+    }
+
+    @Test
+    void requestEmailChange_normalizesNewEmailCaseAndWhitespace() {
+        User user = buildUser(1L, "jane@example.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correctpassword", user.getPasswordHash())).thenReturn(true);
+        when(userRepository.existsByEmail("newemail@example.com")).thenReturn(false);
+
+        authTokenService.requestEmailChange(1L, "  NewEmail@Example.com  ", "correctpassword");
+
+        assertThat(user.getPendingEmail()).isEqualTo("newemail@example.com");
+    }
+
+    @Test
+    void requestEmailChange_throwsInvalidCredentials_whenPasswordIncorrect() {
+        User user = buildUser(1L, "jane@example.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongpassword", user.getPasswordHash())).thenReturn(false);
+
+        assertThatThrownBy(() -> authTokenService.requestEmailChange(1L, "newemail@example.com", "wrongpassword"))
+                .isInstanceOf(InvalidCredentialsException.class);
+
+        verify(authTokenRepository, never()).save(any());
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void requestEmailChange_throwsUserAlreadyExists_whenNewEmailAlreadyRegistered() {
+        User user = buildUser(1L, "jane@example.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correctpassword", user.getPasswordHash())).thenReturn(true);
+        when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> authTokenService.requestEmailChange(1L, "taken@example.com", "correctpassword"))
+                .isInstanceOf(UserAlreadyExistsException.class);
+
+        assertThat(user.getPendingEmail()).isNull();
+        verify(authTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void requestEmailChange_throwsUserNotFound_whenMissing() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authTokenService.requestEmailChange(1L, "newemail@example.com", "correctpassword"))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    // ===================== CONFIRM EMAIL CHANGE =====================
+
+    @Test
+    void confirmEmailChange_updatesEmailVerifiesAndRevokesSessions_whenTokenIsUsable() {
+        User user = buildUser(1L, "jane@example.com");
+        user.requestEmailChange("newemail@example.com");
+        String rawToken = "raw-email-change-token";
+        String tokenHash = TokenHashUtil.sha256(rawToken);
+        AuthToken token = buildToken(300L, user, AuthTokenPurpose.EMAIL_CHANGE, tokenHash, false, LocalDateTime.now().plusMinutes(60), null);
+
+        when(authTokenRepository.findByTokenHashAndPurpose(tokenHash, AuthTokenPurpose.EMAIL_CHANGE))
+                .thenReturn(Optional.of(token));
+        when(userRepository.existsByEmail("newemail@example.com")).thenReturn(false);
+
+        authTokenService.confirmEmailChange(rawToken);
+
+        assertThat(user.getEmail()).isEqualTo("newemail@example.com");
+        assertThat(user.getPendingEmail()).isNull();
+        assertThat(user.getEmailVerifiedAt()).isNotNull();
+        assertThat(token.getUsedAt()).isNotNull();
+        verify(refreshTokenRepository).revokeAllByUserId(1L);
+    }
+
+    @Test
+    void confirmEmailChange_throwsInvalidAuthToken_whenTokenNotUsable() {
+        when(authTokenRepository.findByTokenHashAndPurpose(anyString(), eq(AuthTokenPurpose.EMAIL_CHANGE)))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authTokenService.confirmEmailChange("nonexistent-token"))
+                .isInstanceOf(InvalidAuthTokenException.class);
+
+        verify(refreshTokenRepository, never()).revokeAllByUserId(any());
+    }
+
+    @Test
+    void confirmEmailChange_throwsUserAlreadyExists_whenPendingEmailTakenSinceRequest() {
+        User user = buildUser(1L, "jane@example.com");
+        user.requestEmailChange("newemail@example.com");
+        String rawToken = "raw-email-change-token";
+        String tokenHash = TokenHashUtil.sha256(rawToken);
+        AuthToken token = buildToken(300L, user, AuthTokenPurpose.EMAIL_CHANGE, tokenHash, false, LocalDateTime.now().plusMinutes(60), null);
+
+        when(authTokenRepository.findByTokenHashAndPurpose(tokenHash, AuthTokenPurpose.EMAIL_CHANGE))
+                .thenReturn(Optional.of(token));
+        when(userRepository.existsByEmail("newemail@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> authTokenService.confirmEmailChange(rawToken))
+                .isInstanceOf(UserAlreadyExistsException.class);
+
+        assertThat(user.getEmail()).isEqualTo("jane@example.com");
+        assertThat(token.getUsedAt()).isNull();
+        verify(refreshTokenRepository, never()).revokeAllByUserId(any());
     }
 }
