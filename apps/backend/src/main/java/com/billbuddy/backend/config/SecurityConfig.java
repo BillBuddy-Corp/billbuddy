@@ -40,6 +40,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password",
                                 "/api/v1/auth/verify-email",
+                                "/api/v1/auth/confirm-email-change",
                                 "/actuator/health"
                         ).permitAll()
 
@@ -49,7 +50,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/sessions",
                                 "/api/v1/auth/logout",
                                 "/api/v1/auth/change-password",
-                                "/api/v1/auth/verify-email/resend"
+                                "/api/v1/auth/verify-email/resend",
+                                "/api/v1/auth/change-email"
                         ).authenticated()
 
                         // PROTECTED GROUP ENDPOINTS

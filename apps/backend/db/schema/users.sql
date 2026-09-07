@@ -2,6 +2,7 @@ CREATE TABLE "users" (
   "id" bigserial PRIMARY KEY,
   "full_name" varchar NOT NULL,
   "email" varchar UNIQUE NOT NULL,
+  "pending_email" varchar,
   "mobile_number" varchar UNIQUE,
   "password_hash" varchar,
   "profile_pic_file_id" bigint,

@@ -1,6 +1,8 @@
 package com.billbuddy.backend.features.auth.controller;
 
+import com.billbuddy.backend.features.auth.dto.request.ChangeEmailRequest;
 import com.billbuddy.backend.features.auth.dto.request.ChangePasswordRequest;
+import com.billbuddy.backend.features.auth.dto.request.ConfirmEmailChangeRequest;
 import com.billbuddy.backend.features.auth.dto.request.ForgotPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.GoogleSignInRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
@@ -257,6 +259,42 @@ public class AuthController {
     ) {
         String message = authTokenService.resendVerificationEmail(userId);
         return ResponseEntity.ok(Map.of("message", message));
+    }
+
+    @PostMapping("/change-email")
+    @Operation(
+            summary = "Request an email change",
+            description = "Sends a confirmation link to the new email address; the account's email only actually changes once that link is confirmed",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Confirmation link sent to the new email address"),
+            @ApiResponse(responseCode = "401", description = "Current password is incorrect"),
+            @ApiResponse(responseCode = "409", description = "New email is already registered")
+    })
+    public ResponseEntity<Map<String, String>> changeEmail(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody ChangeEmailRequest request
+    ) {
+        authTokenService.requestEmailChange(userId, request.getNewEmail(), request.getCurrentPassword());
+        return ResponseEntity.ok(Map.of("message", "Confirmation link sent to your new email address"));
+    }
+
+    @PostMapping("/confirm-email-change")
+    @Operation(
+            summary = "Confirm an email change with a token",
+            description = "Consumes an email-change confirmation token, updates the account's email, and revokes all active sessions"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Email changed successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid, expired, or already-used token"),
+            @ApiResponse(responseCode = "409", description = "New email was registered by someone else in the meantime")
+    })
+    public ResponseEntity<Map<String, String>> confirmEmailChange(
+            @Valid @RequestBody ConfirmEmailChangeRequest request
+    ) {
+        authTokenService.confirmEmailChange(request.getToken());
+        return ResponseEntity.ok(Map.of("message", "Email changed successfully"));
     }
 
     @PostMapping("/verify-mobile")

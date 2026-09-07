@@ -6,7 +6,9 @@ import com.billbuddy.backend.exception.InvalidCredentialsException;
 import com.billbuddy.backend.exception.InvalidOtpException;
 import com.billbuddy.backend.exception.MobileNumberNotSetException;
 import com.billbuddy.backend.exception.UserAlreadyExistsException;
+import com.billbuddy.backend.features.auth.dto.request.ChangeEmailRequest;
 import com.billbuddy.backend.features.auth.dto.request.ChangePasswordRequest;
+import com.billbuddy.backend.features.auth.dto.request.ConfirmEmailChangeRequest;
 import com.billbuddy.backend.features.auth.dto.request.ForgotPasswordRequest;
 import com.billbuddy.backend.features.auth.dto.request.GoogleSignInRequest;
 import com.billbuddy.backend.features.auth.dto.request.LoginRequest;
@@ -458,6 +460,129 @@ class AuthControllerTest {
     void resendVerification_returns403_whenNoAuthorizationHeader() throws Exception {
         mockMvc.perform(post("/api/v1/auth/verify-email/resend"))
                 .andExpect(status().isForbidden());
+    }
+
+    // ===================== CHANGE EMAIL =====================
+
+    @Test
+    void changeEmail_returns200_whenValid() throws Exception {
+        stubValidAccessToken(1L);
+        ChangeEmailRequest request = new ChangeEmailRequest();
+        request.setNewEmail("newemail@example.com");
+        request.setCurrentPassword("correctpassword");
+
+        mockMvc.perform(post("/api/v1/auth/change-email")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Confirmation link sent to your new email address"));
+
+        verify(authTokenService).requestEmailChange(1L, "newemail@example.com", "correctpassword");
+    }
+
+    @Test
+    void changeEmail_returns401_whenCurrentPasswordIncorrect() throws Exception {
+        stubValidAccessToken(1L);
+        ChangeEmailRequest request = new ChangeEmailRequest();
+        request.setNewEmail("newemail@example.com");
+        request.setCurrentPassword("wrongpassword");
+
+        doThrow(new InvalidCredentialsException("Current password is incorrect"))
+                .when(authTokenService).requestEmailChange(1L, "newemail@example.com", "wrongpassword");
+
+        mockMvc.perform(post("/api/v1/auth/change-email")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void changeEmail_returns409_whenNewEmailAlreadyRegistered() throws Exception {
+        stubValidAccessToken(1L);
+        ChangeEmailRequest request = new ChangeEmailRequest();
+        request.setNewEmail("taken@example.com");
+        request.setCurrentPassword("correctpassword");
+
+        doThrow(new UserAlreadyExistsException("Email is already registered"))
+                .when(authTokenService).requestEmailChange(1L, "taken@example.com", "correctpassword");
+
+        mockMvc.perform(post("/api/v1/auth/change-email")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void changeEmail_returns403_whenNoAuthorizationHeader() throws Exception {
+        ChangeEmailRequest request = new ChangeEmailRequest();
+        request.setNewEmail("newemail@example.com");
+        request.setCurrentPassword("correctpassword");
+
+        mockMvc.perform(post("/api/v1/auth/change-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void changeEmail_returns400_whenNewEmailBlank() throws Exception {
+        stubValidAccessToken(1L);
+        ChangeEmailRequest request = new ChangeEmailRequest();
+        request.setNewEmail("");
+        request.setCurrentPassword("correctpassword");
+
+        mockMvc.perform(post("/api/v1/auth/change-email")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ===================== CONFIRM EMAIL CHANGE =====================
+
+    @Test
+    void confirmEmailChange_returns200_whenTokenValid() throws Exception {
+        ConfirmEmailChangeRequest request = new ConfirmEmailChangeRequest();
+        request.setToken("valid-email-change-token");
+
+        mockMvc.perform(post("/api/v1/auth/confirm-email-change")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Email changed successfully"));
+
+        verify(authTokenService).confirmEmailChange("valid-email-change-token");
+    }
+
+    @Test
+    void confirmEmailChange_returns400_whenTokenInvalid() throws Exception {
+        ConfirmEmailChangeRequest request = new ConfirmEmailChangeRequest();
+        request.setToken("bad-token");
+
+        doThrow(new InvalidAuthTokenException("Invalid or expired token"))
+                .when(authTokenService).confirmEmailChange("bad-token");
+
+        mockMvc.perform(post("/api/v1/auth/confirm-email-change")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void confirmEmailChange_returns409_whenPendingEmailTakenSinceRequest() throws Exception {
+        ConfirmEmailChangeRequest request = new ConfirmEmailChangeRequest();
+        request.setToken("valid-email-change-token");
+
+        doThrow(new UserAlreadyExistsException("Email is already registered"))
+                .when(authTokenService).confirmEmailChange("valid-email-change-token");
+
+        mockMvc.perform(post("/api/v1/auth/confirm-email-change")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
     }
 
     // ===================== VERIFY MOBILE =====================

@@ -1,0 +1,15 @@
+package com.billbuddy.backend.features.auth.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class ConfirmEmailChangeRequest {
+
+    @NotBlank(message = "Token is required")
+    private String token;
+}

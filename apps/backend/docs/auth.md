@@ -242,6 +242,51 @@ or, if already verified:
 
 ---
 
+## Email change
+
+Unlike a mobile number (which changes immediately via `PUT /users/me` and shows unverified until confirmed), email is also the account's login credential and password-reset destination, so it works the other way round: the account's `email` field only actually changes once the new address is confirmed. Requesting a change requires the current password (the same re-auth rule as `change-password`), and confirming it revokes every active session, exactly like password reset/change.
+
+A new request supersedes a prior unconfirmed one, same as `forgot-password`. The old email keeps working for login and password reset the entire time a change is pending. `GET /users/me` (see `storage.md`) exposes the pending address via `pendingEmail` so a client can show "confirmation sent to new@example.com."
+
+---
+
+### `POST /auth/change-email` (**Auth required**)
+Requests an email change. Sends a confirmation link to the new address.
+
+**Request**
+```json
+{
+  "newEmail": "jane-new@example.com",
+  "currentPassword": "password123"
+}
+```
+
+**Response** `200 OK`
+```json
+{ "message": "Confirmation link sent to your new email address" }
+```
+
+Fails with `401 INVALID_CREDENTIALS` if `currentPassword` doesn't match, or `409 USER_ALREADY_EXISTS` if `newEmail` is already registered.
+
+---
+
+### `POST /auth/confirm-email-change`
+Consumes an email-change confirmation token, updates the account's email, marks it verified, and revokes every active session.
+
+**Request**
+```json
+{ "token": "AbC123..." }
+```
+
+**Response** `200 OK`
+```json
+{ "message": "Email changed successfully" }
+```
+
+Fails with `400 INVALID_AUTH_TOKEN` under the same conditions as `reset-password`, or `409 USER_ALREADY_EXISTS` if the pending email was registered by someone else while the change was pending.
+
+---
+
 ## Mobile number verification
 
 A mobile number can be given at signup, or added or changed later via `PUT /users/me` (see `storage.md`). Either way, whenever the number changes, an OTP is sent automatically (same best-effort, never-fails-the-caller pattern as the verification email) and any prior verification status is reset, since a new number is by definition unverified.
@@ -287,8 +332,8 @@ Fails with `400 MOBILE_NUMBER_NOT_SET` if the account has no mobile number on fi
 
 | `error` | Status | Cause |
 |---|---|---|
-| `USER_ALREADY_EXISTS` | 409 | signup email already registered, or Google sign-in with an email already registered on a password-based account |
-| `INVALID_CREDENTIALS` | 401 | wrong login password, invalid/expired/revoked refresh token, wrong `currentPassword` on change-password, or an invalid/unverified Google token on Google sign-in |
-| `INVALID_AUTH_TOKEN` | 400 | a password reset or email verification token is missing, expired, revoked, or already used |
+| `USER_ALREADY_EXISTS` | 409 | signup email already registered, `newEmail`/pending email already registered on change-email or its confirmation, or Google sign-in with an email already registered on a password-based account |
+| `INVALID_CREDENTIALS` | 401 | wrong login password, invalid/expired/revoked refresh token, wrong `currentPassword` on change-password or change-email, or an invalid/unverified Google token on Google sign-in |
+| `INVALID_AUTH_TOKEN` | 400 | a password reset, email verification, or email change token is missing, expired, revoked, or already used |
 | `INVALID_OTP` | 400 | the mobile verification code is wrong, expired, already used, or attempts are exhausted |
 | `MOBILE_NUMBER_NOT_SET` | 400 | requested a mobile verification code with no mobile number on the account |

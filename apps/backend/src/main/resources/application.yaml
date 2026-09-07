@@ -41,6 +41,7 @@ invite:
 auth-token:
   password-reset-expiry-minutes: ${PASSWORD_RESET_EXPIRY_MINUTES:60}
   email-verification-expiry-hours: ${EMAIL_VERIFICATION_EXPIRY_HOURS:24}
+  email-change-expiry-minutes: ${EMAIL_CHANGE_EXPIRY_MINUTES:60}
 
 otp:
   expiry-minutes: ${OTP_EXPIRY_MINUTES:10}
@@ -62,6 +63,7 @@ app:
   join-link-base-url: ${JOIN_LINK_BASE_URL:http://localhost:3000/invites/join}
   reset-password-base-url: ${RESET_PASSWORD_BASE_URL:http://localhost:3000/auth/reset-password}
   verify-email-base-url: ${VERIFY_EMAIL_BASE_URL:http://localhost:3000/auth/verify-email}
+  email-change-base-url: ${EMAIL_CHANGE_BASE_URL:http://localhost:3000/auth/confirm-email-change}
   upload-dir: ${UPLOAD_DIR:/app/uploads}
 
 springdoc:
