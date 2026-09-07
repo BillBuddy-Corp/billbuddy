@@ -12,5 +12,5 @@ CREATE TABLE "auth_tokens" (
   "created_at" timestamp DEFAULT (now())
 );
 ALTER TABLE "auth_tokens" ADD CONSTRAINT auth_tokens_purpose_check
-CHECK (purpose IN ('PASSWORD_RESET', 'EMAIL_VERIFICATION'));
+CHECK (purpose IN ('PASSWORD_RESET', 'EMAIL_VERIFICATION', 'EMAIL_CHANGE'));
 ALTER TABLE "auth_tokens" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
