@@ -372,4 +372,14 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(NotificationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleNotificationNotFound(NotificationNotFoundException ex) {
+        return Map.of(
+                "error", "NOTIFICATION_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }

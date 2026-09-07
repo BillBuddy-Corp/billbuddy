@@ -15,6 +15,7 @@ import com.billbuddy.backend.features.groups.model.GroupRole;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
 import com.billbuddy.backend.features.groups.service.GroupAccessService;
+import com.billbuddy.backend.features.notifications.service.NotificationService;
 import com.billbuddy.backend.features.settlements.dto.request.CreateSettlementRequest;
 import com.billbuddy.backend.features.settlements.dto.request.UpdateSettlementRequest;
 import com.billbuddy.backend.features.settlements.dto.response.SettlementResponse;
@@ -37,19 +38,22 @@ public class SettlementService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final GroupAccessService groupAccessService;
+    private final NotificationService notificationService;
 
     public SettlementService(
             SettlementRepository settlementRepository,
             GroupRepository groupRepository,
             GroupMemberRepository groupMemberRepository,
             UserRepository userRepository,
-            GroupAccessService groupAccessService
+            GroupAccessService groupAccessService,
+            NotificationService notificationService
     ) {
         this.settlementRepository = settlementRepository;
         this.groupRepository = groupRepository;
         this.groupMemberRepository = groupMemberRepository;
         this.userRepository = userRepository;
         this.groupAccessService = groupAccessService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -73,6 +77,7 @@ public class SettlementService {
                 request.getAmount().setScale(2, RoundingMode.HALF_UP), currency, request.getNote()
         );
         settlement = settlementRepository.save(settlement);
+        notificationService.notifySettlementRecorded(settlement, requesterId);
 
         return toResponse(settlement);
     }

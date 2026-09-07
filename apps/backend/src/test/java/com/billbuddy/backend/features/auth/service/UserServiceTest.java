@@ -201,4 +201,35 @@ class UserServiceTest {
         assertThat(response.isMobileVerified()).isFalse();
         verify(mobileOtpService).sendOtpIfMobileNumberPresent(user);
     }
+
+    @Test
+    void updateProfile_setsFcmToken_whenProvided() {
+        User user = buildUser(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("User 1");
+        request.setDefaultCurrency("INR");
+        request.setFcmToken("device-token-abc");
+
+        userService.updateProfile(1L, request);
+
+        assertThat(user.getFcmToken()).isEqualTo("device-token-abc");
+    }
+
+    @Test
+    void updateProfile_preservesFcmToken_whenOmitted() {
+        User user = buildUser(1L);
+        user.updateProfile(user.getFullName(), null, user.getDefaultCurrency(), null, "already-registered-token");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setFullName("Updated Name");
+        request.setDefaultCurrency("INR");
+        // fcmToken deliberately left null, simulating a routine profile edit unrelated to push registration
+
+        userService.updateProfile(1L, request);
+
+        assertThat(user.getFcmToken()).isEqualTo("already-registered-token");
+    }
 }

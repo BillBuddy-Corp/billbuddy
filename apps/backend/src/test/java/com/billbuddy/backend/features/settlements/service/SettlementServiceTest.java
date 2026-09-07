@@ -12,6 +12,7 @@ import com.billbuddy.backend.features.groups.model.GroupMember;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
 import com.billbuddy.backend.features.groups.service.GroupAccessService;
+import com.billbuddy.backend.features.notifications.service.NotificationService;
 import com.billbuddy.backend.features.settlements.dto.request.CreateSettlementRequest;
 import com.billbuddy.backend.features.settlements.dto.request.UpdateSettlementRequest;
 import com.billbuddy.backend.features.settlements.dto.response.SettlementResponse;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,6 +52,9 @@ class SettlementServiceTest {
 
     @Mock
     private GroupAccessService groupAccessService;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private SettlementService settlementService;
@@ -116,6 +121,7 @@ class SettlementServiceTest {
         assertThat(response.getPaidToUserId()).isEqualTo(1L);
         assertThat(response.getAmount()).isEqualByComparingTo("50.00");
         assertThat(response.getCreatedByUserId()).isEqualTo(1L);
+        verify(notificationService).notifySettlementRecorded(any(Settlement.class), eq(1L));
     }
 
     @Test
