@@ -352,4 +352,24 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ExpenseCommentNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleExpenseCommentNotFound(ExpenseCommentNotFoundException ex) {
+        return Map.of(
+                "error", "EXPENSE_COMMENT_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(NotExpenseCommentOwnerException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleNotExpenseCommentOwner(NotExpenseCommentOwnerException ex) {
+        return Map.of(
+                "error", "NOT_EXPENSE_COMMENT_OWNER",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }
