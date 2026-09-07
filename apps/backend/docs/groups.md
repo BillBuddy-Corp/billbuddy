@@ -19,7 +19,9 @@ Creates a group. The creator automatically becomes its first Admin.
   "defaultCurrency": "INR"
 }
 ```
-`description` optional. `defaultCurrency` must be a real ISO 4217 code (e.g. `INR`, `USD`, `EUR`) — validated against `java.util.Currency`, case-insensitive on input, always stored/returned uppercase. An unrecognized code returns `400 INVALID_CURRENCY`.
+`description` optional. `defaultCurrency` must be a real ISO 4217 code (e.g. `INR`, `USD`, `EUR`) — validated against `java.util.Currency`, case-insensitive on input, always stored/returned uppercase.
+
+Fails with `400 INVALID_CURRENCY` if `defaultCurrency` isn't a real code.
 
 **Response** `201 Created`
 ```json
@@ -51,6 +53,8 @@ Group details. Caller must be an active member.
 
 **Response** `200 OK` — same shape as the create response.
 
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, or `404 GROUP_NOT_FOUND` if the group doesn't exist.
+
 ---
 
 ### `PUT /groups/{groupId}` — Admin only
@@ -60,12 +64,16 @@ Full update of name/description/currency.
 
 **Response** `200 OK` — same shape as the create response.
 
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, `404 GROUP_NOT_FOUND` if the group doesn't exist, or `400 INVALID_CURRENCY` if `defaultCurrency` isn't a real code.
+
 ---
 
 ### `DELETE /groups/{groupId}` — Admin only
 Soft-deletes the group and revokes all its active invites. Blocked while any member still has a non-zero net balance (`409`), settle up via Settlements first (see `settlements.md`).
 
 **Response** `204 No Content`
+
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, `404 GROUP_NOT_FOUND` if the group doesn't exist, or `409 UNSETTLED_BALANCES` if any member still has a non-zero net balance.
 
 ---
 
@@ -85,12 +93,16 @@ Lists active members. Caller must be a member.
 ]
 ```
 
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, or `404 GROUP_NOT_FOUND` if the group doesn't exist.
+
 ---
 
 ### `DELETE /groups/{groupId}/members/{userId}`
 Removes a member. An Admin can remove anyone; anyone can remove themselves (leave). The sole remaining Admin cannot leave while other active members exist (`409`).
 
 **Response** `204 No Content`
+
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if removing someone other than yourself and you're not an Admin, `404 GROUP_NOT_FOUND` if the group doesn't exist, `404 MEMBER_NOT_FOUND` if `userId` isn't an active member, or `409 LAST_ADMIN` if you're the sole remaining Admin leaving while other members exist.
 
 ---
 
@@ -104,6 +116,8 @@ Promotes or demotes a member. Demoting the sole remaining Admin while other memb
 `role` is `"ADMIN"` or `"MEMBER"`.
 
 **Response** `200 OK` — same shape as a member in the members list.
+
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, `404 GROUP_NOT_FOUND` if the group doesn't exist, `404 MEMBER_NOT_FOUND` if `userId` isn't an active member, or `409 LAST_ADMIN` if demoting the sole remaining Admin while other members exist.
 
 ---
 
@@ -119,6 +133,8 @@ Emails an invite link to the given address via Gmail SMTP. Token is stored hashe
 ```json
 { "message": "Invite sent" }
 ```
+
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, `404 GROUP_NOT_FOUND` if the group doesn't exist, or `409 ALREADY_GROUP_MEMBER` if `email` already belongs to an active member.
 
 ---
 
@@ -153,12 +169,16 @@ Lists all pending invites, both email and shareable-link. Email-invite `token` i
 ]
 ```
 
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, or `403 NOT_GROUP_ADMIN` if they're a member but not an Admin.
+
 ---
 
 ### `DELETE /groups/{groupId}/invites/{inviteId}` — Admin only
 Revokes a specific pending invite (either type).
 
 **Response** `204 No Content`
+
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, or `404 INVITE_NOT_FOUND` if `inviteId` doesn't exist or doesn't belong to this group.
 
 ---
 
@@ -167,12 +187,16 @@ Creates a new shareable join link, invalidating any prior one for the group. Nev
 
 **Response** `201 Created` — a `GroupInviteResponse` with `type: "LINK"` and `token` populated (see the list example above).
 
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, or `404 GROUP_NOT_FOUND` if the group doesn't exist.
+
 ---
 
 ### `DELETE /groups/{groupId}/invites/link` — Admin only
 Disables the group's active shareable link, if any. Safe to call even if there isn't one.
 
 **Response** `204 No Content`
+
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, or `403 NOT_GROUP_ADMIN` if they're a member but not an Admin.
 
 ---
 
@@ -194,4 +218,20 @@ Joins a group using either an email-invite or shareable-link token — same endp
 }
 ```
 
-Fails with `400` if the invite is revoked, expired, or already used; `404` if the token or its group doesn't exist; `409` if already a member.
+Fails with `400 INVALID_INVITE` if the invite is revoked, expired, or already used; `404 INVITE_NOT_FOUND` if the token doesn't match any invite, `404 GROUP_NOT_FOUND` if the invite's group has since been deleted, or `409 ALREADY_GROUP_MEMBER` if the caller is already an active member.
+
+---
+
+## Errors specific to Groups
+
+| `error` | Status | Cause |
+|---|---|---|
+| `GROUP_NOT_FOUND` | 404 | group id doesn't exist or is soft-deleted |
+| `NOT_GROUP_MEMBER` | 403 | caller isn't an active member of the group |
+| `NOT_GROUP_ADMIN` | 403 | caller is an active member but not an Admin, on an Admin-only action |
+| `MEMBER_NOT_FOUND` | 404 | target user id isn't an active member of the group |
+| `LAST_ADMIN` | 409 | the sole remaining Admin tried to leave or step down while other active members exist |
+| `INVITE_NOT_FOUND` | 404 | invite id/token doesn't match any invite, or doesn't belong to the given group |
+| `INVALID_INVITE` | 400 | the invite has been revoked, expired, or (for email invites) already used |
+| `ALREADY_GROUP_MEMBER` | 409 | the target email/user is already an active member of the group |
+| `UNSETTLED_BALANCES` | 409 | a member still has a non-zero net balance, blocking group deletion |
