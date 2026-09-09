@@ -1,6 +1,7 @@
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getGroup, Group, GroupMember, listMembers } from '../api/groups';
@@ -8,8 +9,10 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { getErrorMessage } from '../utils/errors';
 
 type Route = RouteProp<RootStackParamList, 'GroupDetail'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'GroupDetail'>;
 
 export function GroupDetailScreen() {
+  const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const { groupId } = route.params;
 
@@ -63,6 +66,14 @@ export function GroupDetailScreen() {
         <Text className="mt-2 text-xs text-gray-400">
           {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · {group.defaultCurrency}
         </Text>
+        {group.currentUserRole === 'ADMIN' ? (
+          <Pressable
+            onPress={() => navigation.navigate('Invites', { groupId })}
+            className="mt-3 self-start rounded-lg bg-primary px-4 py-2"
+          >
+            <Text className="text-sm font-medium text-white">Invite people</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <Text className="px-5 pb-2 pt-4 text-xs font-medium uppercase text-gray-400">

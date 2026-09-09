@@ -4,6 +4,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
+import { InvitesScreen } from '../screens/InvitesScreen';
+import { JoinGroupParams, JoinGroupScreen } from '../screens/JoinGroupScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordParams, ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { SignupScreen } from '../screens/SignupScreen';
@@ -26,8 +28,10 @@ export type RootStackParamList = {
   MainTabs: undefined;
   GroupDetail: { groupId: number };
   CreateGroup: undefined;
+  Invites: { groupId: number };
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
+  JoinGroup: JoinGroupParams;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -59,6 +63,11 @@ export function RootNavigator() {
             component={CreateGroupScreen}
             options={{ headerShown: true, title: 'New group', presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="Invites"
+            component={InvitesScreen}
+            options={{ headerShown: true, title: 'Invite people' }}
+          />
         </>
       ) : (
         <>
@@ -69,6 +78,7 @@ export function RootNavigator() {
       )}
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+      <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
     </Stack.Navigator>
   );
 }
