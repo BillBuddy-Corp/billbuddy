@@ -23,9 +23,20 @@ public class Expense {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "group_id", nullable = false)
+    // Null for a non-group (friend-to-friend) expense -- exactly one of group or the
+    // friendUserLowId/friendUserHighId pair below is set, never both.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
     private Group group;
+
+    // Set only when group is null, normalized so friendUserLowId is always the smaller id --
+    // same convention as Friendship, and lets "all non-group expenses between these two people"
+    // be a direct indexed lookup instead of a join through splits/payers.
+    @Column(name = "friend_user_low_id")
+    private Long friendUserLowId;
+
+    @Column(name = "friend_user_high_id")
+    private Long friendUserHighId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
@@ -71,6 +82,8 @@ public class Expense {
     @Builder(access = AccessLevel.PRIVATE)
     private Expense(
             Group group,
+            Long friendUserLowId,
+            Long friendUserHighId,
             User createdBy,
             String description,
             BigDecimal amount,
@@ -82,6 +95,8 @@ public class Expense {
             SplitType splitType
     ) {
         this.group = group;
+        this.friendUserLowId = friendUserLowId;
+        this.friendUserHighId = friendUserHighId;
         this.createdBy = createdBy;
         this.description = description;
         this.amount = amount;
@@ -107,6 +122,38 @@ public class Expense {
     ) {
         return Expense.builder()
                 .group(group)
+                .createdBy(createdBy)
+                .description(description)
+                .amount(amount)
+                .currency(currency)
+                .convertedAmount(convertedAmount)
+                .exchangeRate(exchangeRate)
+                .category(category)
+                .receiptFile(receiptFile)
+                .splitType(splitType)
+                .build();
+    }
+
+    // The two participants can be passed in either order -- normalized internally the same way
+    // Friendship.create() does it, so callers never need to know about the low/high convention.
+    public static Expense createFriendExpense(
+            User userA,
+            User userB,
+            User createdBy,
+            String description,
+            BigDecimal amount,
+            String currency,
+            BigDecimal convertedAmount,
+            BigDecimal exchangeRate,
+            String category,
+            StoredFile receiptFile,
+            SplitType splitType
+    ) {
+        Long lowId = Math.min(userA.getId(), userB.getId());
+        Long highId = Math.max(userA.getId(), userB.getId());
+        return Expense.builder()
+                .friendUserLowId(lowId)
+                .friendUserHighId(highId)
                 .createdBy(createdBy)
                 .description(description)
                 .amount(amount)
@@ -145,5 +192,9 @@ public class Expense {
 
     public boolean isDeleted() {
         return this.deletedAt != null;
+    }
+
+    public boolean isFriendExpense() {
+        return this.group == null;
     }
 }

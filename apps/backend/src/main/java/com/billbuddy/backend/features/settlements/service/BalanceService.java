@@ -7,6 +7,9 @@ import com.billbuddy.backend.features.expenses.model.ExpensePayer;
 import com.billbuddy.backend.features.expenses.model.ExpenseSplit;
 import com.billbuddy.backend.features.expenses.repository.ExpensePayerRepository;
 import com.billbuddy.backend.features.expenses.repository.ExpenseSplitRepository;
+import com.billbuddy.backend.features.friends.dto.response.FriendBalanceResponse;
+import com.billbuddy.backend.features.friends.service.FriendshipService;
+import com.billbuddy.backend.features.groups.model.Group;
 import com.billbuddy.backend.features.groups.model.GroupMember;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
@@ -23,6 +26,7 @@ import java.math.RoundingMode;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +39,7 @@ public class BalanceService {
     private final ExpensePayerRepository expensePayerRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final SettlementRepository settlementRepository;
+    private final FriendshipService friendshipService;
 
     public BalanceService(
             GroupRepository groupRepository,
@@ -43,7 +48,8 @@ public class BalanceService {
             GroupAccessService groupAccessService,
             ExpensePayerRepository expensePayerRepository,
             ExpenseSplitRepository expenseSplitRepository,
-            SettlementRepository settlementRepository
+            SettlementRepository settlementRepository,
+            FriendshipService friendshipService
     ) {
         this.groupRepository = groupRepository;
         this.groupMemberRepository = groupMemberRepository;
@@ -52,6 +58,7 @@ public class BalanceService {
         this.expensePayerRepository = expensePayerRepository;
         this.expenseSplitRepository = expenseSplitRepository;
         this.settlementRepository = settlementRepository;
+        this.friendshipService = friendshipService;
     }
 
     @Transactional
@@ -96,6 +103,68 @@ public class BalanceService {
                         t.amount()
                 ))
                 .toList();
+    }
+
+    // Combines two sources, both expressed from the caller's own point of view (positive =
+    // friend owes caller): each shared group's simplified direct edge between the pair, plus the
+    // raw paid-minus-owed balance on any non-group expenses between them. A group's debt can
+    // simplify to route through a third member with no direct edge between this pair at all --
+    // that correctly shows as zero for that group's currency, consistent with group balances
+    // already being pool balances rather than per-expense IOUs, not a bug.
+    @Transactional
+    public List<FriendBalanceResponse> getFriendBalance(Long userId, Long friendUserId) {
+        friendshipService.requireFriends(userId, friendUserId);
+
+        Map<String, BigDecimal> byCurrency = new LinkedHashMap<>();
+
+        for (Long groupId : sharedActiveGroupIds(userId, friendUserId)) {
+            Group group = groupRepository.findById(groupId).orElseThrow();
+            List<DebtSimplifier.Transfer> transfers = DebtSimplifier.simplify(computeNetBalances(groupId));
+            for (DebtSimplifier.Transfer transfer : transfers) {
+                if (transfer.fromUserId().equals(userId) && transfer.toUserId().equals(friendUserId)) {
+                    byCurrency.merge(group.getDefaultCurrency(), transfer.amount().negate(), BigDecimal::add);
+                } else if (transfer.fromUserId().equals(friendUserId) && transfer.toUserId().equals(userId)) {
+                    byCurrency.merge(group.getDefaultCurrency(), transfer.amount(), BigDecimal::add);
+                }
+            }
+        }
+
+        Long lowId = Math.min(userId, friendUserId);
+        Long highId = Math.max(userId, friendUserId);
+
+        // Same paid-minus-owed formula as computeNetBalances, restricted to userId's own rows --
+        // in a strictly two-person expense this already equals "how much the friend owes userId",
+        // since every dollar someone else paid is mirrored by userId's own owed share.
+        for (ExpensePayer payer : expensePayerRepository
+                .findByExpense_FriendUserLowIdAndExpense_FriendUserHighIdAndExpense_DeletedAtIsNull(lowId, highId)) {
+            if (payer.getUser().getId().equals(userId)) {
+                byCurrency.merge(payer.getExpense().getCurrency(), payer.getAmountPaid(), BigDecimal::add);
+            }
+        }
+        for (ExpenseSplit split : expenseSplitRepository
+                .findByExpense_FriendUserLowIdAndExpense_FriendUserHighIdAndExpense_DeletedAtIsNull(lowId, highId)) {
+            if (split.getUser().getId().equals(userId)) {
+                byCurrency.merge(split.getExpense().getCurrency(), split.getAmountOwed().negate(), BigDecimal::add);
+            }
+        }
+
+        byCurrency.replaceAll((currency, amount) -> amount.setScale(2, RoundingMode.HALF_UP));
+
+        return byCurrency.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> new FriendBalanceResponse(e.getKey(), e.getValue()))
+                .toList();
+    }
+
+    private Set<Long> sharedActiveGroupIds(Long userId, Long friendUserId) {
+        Set<Long> userGroups = groupMemberRepository.findByUser_IdAndLeftAtIsNull(userId).stream()
+                .map(m -> m.getGroup().getId())
+                .collect(Collectors.toSet());
+        Set<Long> friendGroups = groupMemberRepository.findByUser_IdAndLeftAtIsNull(friendUserId).stream()
+                .map(m -> m.getGroup().getId())
+                .collect(Collectors.toSet());
+        userGroups.retainAll(friendGroups);
+        return userGroups;
     }
 
     // ===================== HELPERS =====================

@@ -40,6 +40,7 @@ import com.billbuddy.backend.features.groups.model.GroupRole;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
 import com.billbuddy.backend.features.groups.repository.GroupRepository;
 import com.billbuddy.backend.features.groups.service.GroupAccessService;
+import com.billbuddy.backend.features.friends.service.FriendshipService;
 import com.billbuddy.backend.features.notifications.service.NotificationService;
 import com.billbuddy.backend.features.storage.model.StoredFile;
 import com.billbuddy.backend.features.storage.service.FileService;
@@ -69,6 +70,7 @@ public class ExpenseService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final GroupAccessService groupAccessService;
+    private final FriendshipService friendshipService;
     private final FileService fileService;
     private final ExchangeRateService exchangeRateService;
     private final NotificationService notificationService;
@@ -83,6 +85,7 @@ public class ExpenseService {
             GroupMemberRepository groupMemberRepository,
             UserRepository userRepository,
             GroupAccessService groupAccessService,
+            FriendshipService friendshipService,
             FileService fileService,
             ExchangeRateService exchangeRateService,
             NotificationService notificationService
@@ -96,6 +99,7 @@ public class ExpenseService {
         this.groupMemberRepository = groupMemberRepository;
         this.userRepository = userRepository;
         this.groupAccessService = groupAccessService;
+        this.friendshipService = friendshipService;
         this.fileService = fileService;
         this.exchangeRateService = exchangeRateService;
         this.notificationService = notificationService;
@@ -120,10 +124,49 @@ public class ExpenseService {
         );
         expense = expenseRepository.save(expense);
 
-        persistSplit(expense, group, input);
+        persistSplit(expense, activeGroupMemberIds(groupId), input);
         notificationService.notifyExpenseCreated(expense, requesterId);
 
         return toResponse(expense);
+    }
+
+    @Transactional
+    public ExpenseResponse createFriendExpense(Long requesterId, Long friendUserId, CreateExpenseRequest request) {
+        friendshipService.requireFriends(requesterId, friendUserId);
+        User creator = userRepository.findById(requesterId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        User friend = userRepository.findById(friendUserId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        ExpenseInput input = ExpenseInput.from(request);
+        CurrencyResolution resolved = resolveCurrencyForFriendExpense(input.currency());
+        BigDecimal convertedAmount = toBaseCurrency(input.amount(), resolved.exchangeRate());
+        StoredFile receiptFile = resolveReceiptFile(input.receiptFileId(), requesterId);
+
+        Expense expense = Expense.createFriendExpense(
+                creator, friend, creator, input.description(), input.amount(), resolved.currency(),
+                convertedAmount, resolved.exchangeRate(), input.category(), receiptFile, input.splitType()
+        );
+        expense = expenseRepository.save(expense);
+
+        // Notifications for non-group expenses are a follow-up -- notifyExpenseCreated assumes a
+        // group and would NPE on expense.getGroup() here.
+        persistSplit(expense, Set.of(requesterId, friendUserId), input);
+
+        return toResponse(expense);
+    }
+
+    @Transactional
+    public List<ExpenseResponse> listFriendExpenses(Long requesterId, Long friendUserId) {
+        friendshipService.requireFriends(requesterId, friendUserId);
+        Long lowId = Math.min(requesterId, friendUserId);
+        Long highId = Math.max(requesterId, friendUserId);
+
+        return expenseRepository
+                .findByGroupIsNullAndFriendUserLowIdAndFriendUserHighIdAndDeletedAtIsNullOrderByCreatedAtDesc(lowId, highId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional
@@ -168,7 +211,7 @@ public class ExpenseService {
                 resolved.exchangeRate(), input.category(), receiptFile, input.splitType()
         );
 
-        persistSplit(expense, group, input);
+        persistSplit(expense, activeGroupMemberIds(group.getId()), input);
 
         return toResponse(expense);
     }
@@ -200,11 +243,7 @@ public class ExpenseService {
 
     // ===================== SPLIT PERSISTENCE =====================
 
-    private void persistSplit(Expense expense, Group group, ExpenseInput input) {
-        Set<Long> activeMemberIds = groupMemberRepository.findByGroup_IdAndLeftAtIsNull(group.getId()).stream()
-                .map(m -> m.getUser().getId())
-                .collect(Collectors.toSet());
-
+    private void persistSplit(Expense expense, Set<Long> allowedParticipantIds, ExpenseInput input) {
         Set<Long> referencedIds = new HashSet<>();
         input.payers().forEach(p -> referencedIds.add(p.getUserId()));
 
@@ -245,8 +284,8 @@ public class ExpenseService {
         }
 
         for (Long id : referencedIds) {
-            if (!activeMemberIds.contains(id)) {
-                throw new InvalidExpenseParticipantException("User " + id + " is not an active member of this group");
+            if (!allowedParticipantIds.contains(id)) {
+                throw new InvalidExpenseParticipantException("User " + id + " is not a valid participant for this expense");
             }
         }
 
@@ -332,6 +371,12 @@ public class ExpenseService {
 
     // ===================== HELPERS =====================
 
+    private Set<Long> activeGroupMemberIds(Long groupId) {
+        return groupMemberRepository.findByGroup_IdAndLeftAtIsNull(groupId).stream()
+                .map(m -> m.getUser().getId())
+                .collect(Collectors.toSet());
+    }
+
     private CurrencyResolution resolveCurrency(String currency, BigDecimal exchangeRate, Group group) {
         String normalized = CurrencyUtil.normalize(currency);
         if (normalized.equals(group.getDefaultCurrency())) {
@@ -344,6 +389,13 @@ public class ExpenseService {
             );
         }
         return new CurrencyResolution(normalized, exchangeRate);
+    }
+
+    // A non-group expense has no group default currency to convert against, so there is nothing
+    // to reconcile -- it's just whatever currency the creator picked, always at a 1:1 rate. Cross
+    // currency 1:1 expenses are out of scope for this slice.
+    private CurrencyResolution resolveCurrencyForFriendExpense(String currency) {
+        return new CurrencyResolution(CurrencyUtil.normalize(currency), BigDecimal.ONE);
     }
 
     private BigDecimal toBaseCurrency(BigDecimal amount, BigDecimal exchangeRate) {
@@ -392,7 +444,7 @@ public class ExpenseService {
 
         return new ExpenseResponse(
                 expense.getId(),
-                expense.getGroup().getId(),
+                expense.isFriendExpense() ? null : expense.getGroup().getId(),
                 expense.getDescription(),
                 expense.getAmount(),
                 expense.getCurrency(),

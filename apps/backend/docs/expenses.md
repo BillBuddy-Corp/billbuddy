@@ -6,6 +6,8 @@ Interactive docs (always in sync with the code): `/swagger-ui.html` once the bac
 
 Balances/Settlements are computed from this data — see `settlements.md`.
 
+An expense doesn't have to belong to a group — a 1:1 expense between two friends uses the same request/response shape via a different set of endpoints, see `friends.md`. Everything on this page (split types, currency handling, rounding) applies equally to those, except a non-group expense is always exactly two participants and never involves an exchange rate.
+
 ---
 
 ## Split types
@@ -185,7 +187,7 @@ Fails with `403 NOT_EXPENSE_COMMENT_OWNER` if the caller is neither the comment'
 |---|---|---|
 | `EXPENSE_NOT_FOUND` | 404 | expense id doesn't exist or is soft-deleted |
 | `INVALID_SPLIT` | 400 | split/payer math doesn't reconcile, wrong fields for the split type, duplicate user id, empty participants/items |
-| `INVALID_EXPENSE_PARTICIPANT` | 400 | a payer/participant/assignment user id isn't an active member of the group |
+| `INVALID_EXPENSE_PARTICIPANT` | 400 | a payer/participant/assignment user id isn't an active member of the group (or, for a non-group expense, isn't one of the two friends) |
 | `NOT_EXPENSE_OWNER` | 403 | caller is neither the expense's creator nor a group Admin, on edit/delete |
 | `INVALID_CURRENCY` | 400 | `currency`/`fromCurrency` isn't a real ISO 4217 code, or `currency` differs from the group's `defaultCurrency` with no positive `exchangeRate` given |
 | `FX_RATE_LOOKUP_FAILED` | 400 | no live exchange rate available for the requested currency pair |

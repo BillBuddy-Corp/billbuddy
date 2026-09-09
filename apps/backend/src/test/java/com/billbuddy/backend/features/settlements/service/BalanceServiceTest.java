@@ -1,5 +1,6 @@
 package com.billbuddy.backend.features.settlements.service;
 
+import com.billbuddy.backend.exception.FriendshipNotFoundException;
 import com.billbuddy.backend.exception.GroupNotFoundException;
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.auth.repository.UserRepository;
@@ -9,6 +10,8 @@ import com.billbuddy.backend.features.expenses.model.ExpenseSplit;
 import com.billbuddy.backend.features.expenses.model.SplitType;
 import com.billbuddy.backend.features.expenses.repository.ExpensePayerRepository;
 import com.billbuddy.backend.features.expenses.repository.ExpenseSplitRepository;
+import com.billbuddy.backend.features.friends.dto.response.FriendBalanceResponse;
+import com.billbuddy.backend.features.friends.service.FriendshipService;
 import com.billbuddy.backend.features.groups.model.Group;
 import com.billbuddy.backend.features.groups.model.GroupMember;
 import com.billbuddy.backend.features.groups.repository.GroupMemberRepository;
@@ -32,6 +35,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,6 +61,9 @@ class BalanceServiceTest {
 
     @Mock
     private SettlementRepository settlementRepository;
+
+    @Mock
+    private FriendshipService friendshipService;
 
     @InjectMocks
     private BalanceService balanceService;
@@ -281,6 +288,112 @@ class BalanceServiceTest {
 
         assertThatThrownBy(() -> balanceService.getSimplifiedBalances(10L, 1L))
                 .isInstanceOf(GroupNotFoundException.class);
+    }
+
+    // ===================== FRIEND BALANCE =====================
+
+    @Test
+    void getFriendBalance_combinesSharedGroupDirectDebtAndNonGroupExpenses() {
+        User a = buildUser(1L);
+        User b = buildUser(2L);
+        Group group = buildGroup(10L, a);
+        GroupMember aMembership = GroupMember.createAdmin(group, a);
+        GroupMember bMembership = GroupMember.createMember(group, b);
+
+        when(groupMemberRepository.findByUser_IdAndLeftAtIsNull(1L)).thenReturn(List.of(aMembership));
+        when(groupMemberRepository.findByUser_IdAndLeftAtIsNull(2L)).thenReturn(List.of(bMembership));
+        when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+
+        // shared group: a paid 100, split equally -- b owes a 50
+        Expense groupExpense = buildExpense(100L, group, a, new BigDecimal("100.00"));
+        when(groupMemberRepository.findByGroup_IdAndLeftAtIsNull(10L)).thenReturn(List.of(aMembership, bMembership));
+        when(expensePayerRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(ExpensePayer.create(groupExpense, a, new BigDecimal("100.00"))));
+        when(expenseSplitRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(
+                        ExpenseSplit.create(groupExpense, a, new BigDecimal("50.00"), null),
+                        ExpenseSplit.create(groupExpense, b, new BigDecimal("50.00"), null)
+                ));
+        when(settlementRepository.findByGroup_IdAndDeletedAtIsNull(10L)).thenReturn(List.of());
+
+        // non-group: b paid 20, split equally -- a owes b 10
+        Expense friendExpense = Expense.createFriendExpense(
+                a, b, b, "Coffee", new BigDecimal("20.00"), "INR",
+                new BigDecimal("20.00"), BigDecimal.ONE, null, null, SplitType.EQUAL
+        );
+        when(expensePayerRepository.findByExpense_FriendUserLowIdAndExpense_FriendUserHighIdAndExpense_DeletedAtIsNull(1L, 2L))
+                .thenReturn(List.of(ExpensePayer.create(friendExpense, b, new BigDecimal("20.00"))));
+        when(expenseSplitRepository.findByExpense_FriendUserLowIdAndExpense_FriendUserHighIdAndExpense_DeletedAtIsNull(1L, 2L))
+                .thenReturn(List.of(
+                        ExpenseSplit.create(friendExpense, a, new BigDecimal("10.00"), null),
+                        ExpenseSplit.create(friendExpense, b, new BigDecimal("10.00"), null)
+                ));
+
+        List<FriendBalanceResponse> result = balanceService.getFriendBalance(1L, 2L);
+
+        assertThat(result).hasSize(1);
+        // +50 (b owes a, from the group) - 10 (a owes b, non-group) = 40
+        assertThat(result.get(0).getCurrency()).isEqualTo("INR");
+        assertThat(result.get(0).getAmount()).isEqualByComparingTo("40.00");
+    }
+
+    @Test
+    void getFriendBalance_omitsGroupContribution_whenSimplificationRoutesThroughThirdMember() {
+        User a = buildUser(1L);
+        User b = buildUser(2L);
+        User c = buildUser(3L);
+        Group group = buildGroup(10L, c);
+        GroupMember aMembership = GroupMember.createMember(group, a);
+        GroupMember bMembership = GroupMember.createMember(group, b);
+        GroupMember cMembership = GroupMember.createAdmin(group, c);
+
+        when(groupMemberRepository.findByUser_IdAndLeftAtIsNull(1L)).thenReturn(List.of(aMembership));
+        when(groupMemberRepository.findByUser_IdAndLeftAtIsNull(2L)).thenReturn(List.of(bMembership));
+        when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+
+        // c paid 90, split equally 3 ways -- a and b each owe c 30, nothing direct between a and b
+        Expense groupExpense = buildExpense(100L, group, c, new BigDecimal("90.00"));
+        when(groupMemberRepository.findByGroup_IdAndLeftAtIsNull(10L))
+                .thenReturn(List.of(aMembership, bMembership, cMembership));
+        when(expensePayerRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(ExpensePayer.create(groupExpense, c, new BigDecimal("90.00"))));
+        when(expenseSplitRepository.findByExpense_Group_IdAndExpense_DeletedAtIsNull(10L))
+                .thenReturn(List.of(
+                        ExpenseSplit.create(groupExpense, a, new BigDecimal("30.00"), null),
+                        ExpenseSplit.create(groupExpense, b, new BigDecimal("30.00"), null),
+                        ExpenseSplit.create(groupExpense, c, new BigDecimal("30.00"), null)
+                ));
+        when(settlementRepository.findByGroup_IdAndDeletedAtIsNull(10L)).thenReturn(List.of());
+
+        // non-group: a paid 40, split equally -- b owes a 20
+        Expense friendExpense = Expense.createFriendExpense(
+                a, b, a, "Snacks", new BigDecimal("40.00"), "INR",
+                new BigDecimal("40.00"), BigDecimal.ONE, null, null, SplitType.EQUAL
+        );
+        when(expensePayerRepository.findByExpense_FriendUserLowIdAndExpense_FriendUserHighIdAndExpense_DeletedAtIsNull(1L, 2L))
+                .thenReturn(List.of(ExpensePayer.create(friendExpense, a, new BigDecimal("40.00"))));
+        when(expenseSplitRepository.findByExpense_FriendUserLowIdAndExpense_FriendUserHighIdAndExpense_DeletedAtIsNull(1L, 2L))
+                .thenReturn(List.of(
+                        ExpenseSplit.create(friendExpense, a, new BigDecimal("20.00"), null),
+                        ExpenseSplit.create(friendExpense, b, new BigDecimal("20.00"), null)
+                ));
+
+        List<FriendBalanceResponse> result = balanceService.getFriendBalance(1L, 2L);
+
+        // the group's debt simplifies to a->c and b->c, no direct a<->b edge, so only the
+        // non-group 20 counts
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getCurrency()).isEqualTo("INR");
+        assertThat(result.get(0).getAmount()).isEqualByComparingTo("20.00");
+    }
+
+    @Test
+    void getFriendBalance_throwsFriendshipNotFound_whenNotFriends() {
+        doThrow(new FriendshipNotFoundException("You are not friends with this user"))
+                .when(friendshipService).requireFriends(1L, 2L);
+
+        assertThatThrownBy(() -> balanceService.getFriendBalance(1L, 2L))
+                .isInstanceOf(FriendshipNotFoundException.class);
     }
 
     private BigDecimal netFor(List<BalanceResponse> balances, Long userId) {

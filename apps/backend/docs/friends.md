@@ -46,6 +46,42 @@ Fails with `404 FRIENDSHIP_NOT_FOUND` if the caller and `friendUserId` aren't cu
 
 ---
 
+### `POST /friends/{friendUserId}/expenses`
+Creates a 1:1 expense with a friend, no group involved. The caller and `friendUserId` must already be friends, and the two of them are the only people who can appear anywhere in the split — `payers`/`participantUserIds`/`percentages`/`exactAmounts`/`item assignments` may only reference these two ids.
+
+Same request/response shape as `POST /groups/{groupId}/expenses` (see `expenses.md`), except: `groupId` in the response is always `null`, there's no group default currency to reconcile against so `exchangeRate` is ignored and always treated as `1`, and `groupId` is not part of the request at all — friendUserId in the path identifies the other participant.
+
+**Response** `201 Created` — same shape as a group expense, `groupId: null`.
+
+Fails with `404 FRIENDSHIP_NOT_FOUND` if not friends with `friendUserId`, `400 INVALID_SPLIT` for the same split-math reasons as a group expense, or `400 INVALID_EXPENSE_PARTICIPANT` if a payer/participant isn't one of the two friends.
+
+---
+
+### `GET /friends/{friendUserId}/expenses`
+Lists all active non-group expenses between the caller and this friend, newest first.
+
+**Response** `200 OK` — array of the same shape as the create response.
+
+Fails with `404 FRIENDSHIP_NOT_FOUND` if not friends with `friendUserId`.
+
+---
+
+### `GET /friends/{friendUserId}/balance`
+Combined balance with this friend: every shared group's simplified direct debt between the two of them, plus any non-group expenses, netted together per currency.
+
+**Response** `200 OK`
+```json
+[
+  { "currency": "INR", "amount": 450.00 },
+  { "currency": "USD", "amount": -12.50 }
+]
+```
+`amount` positive means the friend owes the caller; negative means the caller owes the friend. Balances across different shared groups (or non-group expenses) can be in different currencies — they are never collapsed into one converted number, matching how group balances already avoid silent FX conversion.
+
+Fails with `404 FRIENDSHIP_NOT_FOUND` if not friends with `friendUserId`.
+
+---
+
 ## Errors specific to Friends
 
 | `error` | Status | Cause |
@@ -53,4 +89,4 @@ Fails with `404 FRIENDSHIP_NOT_FOUND` if the caller and `friendUserId` aren't cu
 | `FRIEND_NOT_FOUND` | 404 | no account exists with the given email |
 | `INVALID_FRIEND` | 400 | attempting to add yourself as a friend |
 | `ALREADY_FRIENDS` | 409 | the two users are already friends |
-| `FRIENDSHIP_NOT_FOUND` | 404 | the caller and the target user aren't currently friends |
+| `FRIENDSHIP_NOT_FOUND` | 404 | the caller and the target user aren't currently friends, on remove, a non-group expense, or a balance lookup |

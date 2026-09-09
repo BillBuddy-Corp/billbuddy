@@ -64,6 +64,14 @@ public class FriendshipService {
         friendshipRepository.delete(friendship);
     }
 
+    // Used by other features (non-group expenses) to gate friend-only actions -- throws rather
+    // than returning a boolean so callers get the same 404 FRIENDSHIP_NOT_FOUND shape for free.
+    @Transactional
+    public void requireFriends(Long userAId, Long userBId) {
+        findExistingFriendship(userAId, userBId)
+                .orElseThrow(() -> new FriendshipNotFoundException("You are not friends with this user"));
+    }
+
     private Optional<Friendship> findExistingFriendship(Long userAId, Long userBId) {
         Long lowId = Math.min(userAId, userBId);
         Long highId = Math.max(userAId, userBId);
