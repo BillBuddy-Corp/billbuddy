@@ -1,4 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,11 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { logout } from '../api/auth';
 import { Button } from '../components/atoms/Button';
 import { Logo } from '../components/atoms/Logo';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { getDeviceId } from '../utils/deviceId';
 
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+
 export function HomeScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<Navigation>();
   const user = useAuthStore((state) => state.user);
   const refreshToken = useAuthStore((state) => state.refreshToken);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -29,6 +33,7 @@ export function HomeScreen() {
     } finally {
       await clearSession();
       setLoggingOut(false);
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     }
   };
 
@@ -42,7 +47,7 @@ export function HomeScreen() {
         <Text className="mt-1 text-sm text-gray-500">{user?.email}</Text>
 
         {user && !user.emailVerified ? (
-          <Pressable onPress={() => navigation.navigate('VerifyEmail')} className="mt-2">
+          <Pressable onPress={() => navigation.navigate('VerifyEmail', {})} className="mt-2">
             <Text className="text-xs text-primary">Verify your email</Text>
           </Pressable>
         ) : null}

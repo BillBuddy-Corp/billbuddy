@@ -26,7 +26,7 @@ type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
   isHydrated: boolean;
-  setSession: (session: Session) => Promise<void>;
+  setSession: (session: Session) => Promise<boolean>;
   clearSession: () => Promise<void>;
   hydrate: () => Promise<void>;
   setEmailVerified: (emailVerified: boolean) => Promise<void>;
@@ -63,6 +63,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       persistUser(fullUser),
     ]);
     set({ user: fullUser, accessToken, refreshToken });
+    return emailVerified;
   },
 
   setEmailVerified: async (emailVerified) => {

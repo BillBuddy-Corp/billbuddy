@@ -1,4 +1,5 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
@@ -6,13 +7,16 @@ import { resetPassword } from '../api/auth';
 import { Button } from '../components/atoms/Button';
 import { Logo } from '../components/atoms/Logo';
 import { TextField } from '../components/atoms/TextField';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { getErrorMessage } from '../utils/errors';
 
 export type ResetPasswordParams = { token?: string };
 
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>;
+
 export function ResetPasswordScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<Navigation>();
   const route = useRoute<RouteProp<Record<string, ResetPasswordParams>, string>>();
   const clearSession = useAuthStore((state) => state.clearSession);
   const hasSession = useAuthStore((state) => Boolean(state.accessToken));
@@ -69,7 +73,10 @@ export function ResetPasswordScreen() {
               <Text className="mb-5 text-center text-sm text-gray-700">
                 Your password has been reset. Log in with your new password.
               </Text>
-              <Button label="Go to login" onPress={() => navigation.navigate('Login')} />
+              <Button
+                label="Go to login"
+                onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })}
+              />
             </>
           ) : (
             <>

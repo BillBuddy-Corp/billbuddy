@@ -1,4 +1,5 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,14 +8,17 @@ import { resendVerificationEmail, verifyEmail } from '../api/auth';
 import { Button } from '../components/atoms/Button';
 import { Logo } from '../components/atoms/Logo';
 import { TextField } from '../components/atoms/TextField';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { extractToken } from '../utils/extractToken';
 import { getErrorMessage } from '../utils/errors';
 
 export type VerifyEmailParams = { token?: string };
 
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'VerifyEmail'>;
+
 export function VerifyEmailScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<Navigation>();
   const route = useRoute<RouteProp<Record<string, VerifyEmailParams>, string>>();
   const hasSession = useAuthStore((state) => Boolean(state.accessToken));
   const setEmailVerified = useAuthStore((state) => state.setEmailVerified);
@@ -27,7 +31,8 @@ export function VerifyEmailScreen() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
-  const goHome = () => navigation.navigate(hasSession ? 'Home' : 'Login');
+  const goHome = () =>
+    navigation.reset({ index: 0, routes: [{ name: hasSession ? 'Home' : 'Login' }] });
 
   const runVerification = async (token: string, { navigateOnSuccess } = { navigateOnSuccess: false }) => {
     setStatus('pending');

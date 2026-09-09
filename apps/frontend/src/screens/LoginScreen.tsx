@@ -7,12 +7,12 @@ import { login } from '../api/auth';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { AuthCard } from '../components/molecules/AuthCard';
-import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { getDeviceId } from '../utils/deviceId';
 import { getErrorMessage } from '../utils/errors';
 
-type Navigation = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export function LoginScreen() {
   const navigation = useNavigation<Navigation>();
@@ -33,7 +33,7 @@ export function LoginScreen() {
     try {
       const deviceId = await getDeviceId();
       const response = await login({ email: email.trim(), password, deviceId });
-      await setSession({
+      const emailVerified = await setSession({
         user: {
           userId: response.userId,
           email: response.email,
@@ -41,6 +41,10 @@ export function LoginScreen() {
         },
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
+      });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: emailVerified ? 'Home' : 'VerifyEmail' }],
       });
     } catch (err) {
       setError(getErrorMessage(err));

@@ -7,10 +7,10 @@ import { forgotPassword } from '../api/auth';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { Logo } from '../components/atoms/Logo';
-import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { getErrorMessage } from '../utils/errors';
 
-type Navigation = NativeStackNavigationProp<AuthStackParamList, 'ForgotPassword'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
 export function ForgotPasswordScreen() {
   const navigation = useNavigation<Navigation>();

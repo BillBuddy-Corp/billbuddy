@@ -7,12 +7,12 @@ import { login, signup } from '../api/auth';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { AuthCard } from '../components/molecules/AuthCard';
-import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { getDeviceId } from '../utils/deviceId';
 import { getErrorMessage } from '../utils/errors';
 
-type Navigation = NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 
 export function SignupScreen() {
   const navigation = useNavigation<Navigation>();
@@ -41,7 +41,7 @@ export function SignupScreen() {
 
       const deviceId = await getDeviceId();
       const response = await login({ email: trimmedEmail, password, deviceId });
-      await setSession({
+      const emailVerified = await setSession({
         user: {
           userId: response.userId,
           email: response.email,
@@ -49,6 +49,10 @@ export function SignupScreen() {
         },
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
+      });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: emailVerified ? 'Home' : 'VerifyEmail' }],
       });
     } catch (err) {
       setError(getErrorMessage(err));
