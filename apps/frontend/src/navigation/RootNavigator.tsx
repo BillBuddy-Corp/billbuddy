@@ -7,6 +7,7 @@ import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
+import { GroupSettingsScreen } from '../screens/GroupSettingsScreen';
 import { InvitesScreen } from '../screens/InvitesScreen';
 import { JoinGroupParams, JoinGroupScreen } from '../screens/JoinGroupScreen';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -34,6 +35,7 @@ export type RootStackParamList = {
   FriendDetail: { friendUserId: number };
   AddFriend: undefined;
   AddFriendExpense: { friendUserId: number };
+  GroupSettings: { groupId: number };
   Invites: { groupId: number };
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
@@ -41,6 +43,16 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Header options for screens already converted to the Splitwise-style dark
+// theme, so the native header bar matches their dark content instead of
+// React Navigation's default light header.
+const darkHeaderOptions = {
+  headerShown: true,
+  headerStyle: { backgroundColor: '#0D0D0D' },
+  headerTintColor: '#F5F5F7',
+  headerShadowVisible: false,
+} as const;
 
 export function RootNavigator() {
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -85,9 +97,14 @@ export function RootNavigator() {
             options={{ headerShown: true, title: 'Add expense', presentation: 'modal' }}
           />
           <Stack.Screen
+            name="GroupSettings"
+            component={GroupSettingsScreen}
+            options={{ ...darkHeaderOptions, title: 'Group settings' }}
+          />
+          <Stack.Screen
             name="Invites"
             component={InvitesScreen}
-            options={{ headerShown: true, title: 'Invite people' }}
+            options={{ ...darkHeaderOptions, title: 'Invite people' }}
           />
         </>
       ) : (

@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Share, Text, View } from 'react-native';
@@ -15,6 +16,34 @@ import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { getErrorMessage } from '../utils/errors';
+
+function LinkRow({
+  icon,
+  label,
+  onPress,
+  busy,
+  destructive,
+}: {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  label: string;
+  onPress: () => void;
+  busy?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      className={`flex-row items-center border-b border-divider py-4 ${busy ? 'opacity-50' : ''}`}
+    >
+      <MaterialCommunityIcons name={icon} size={20} color={destructive ? '#F87171' : '#F5F5F7'} />
+      <Text className={`ml-3 flex-1 text-sm font-medium ${destructive ? 'text-red-400' : 'text-ink'}`}>
+        {label}
+      </Text>
+      {busy ? <ActivityIndicator color="#9CA3AF" /> : null}
+    </Pressable>
+  );
+}
 
 type Route = RouteProp<RootStackParamList, 'Invites'>;
 
@@ -122,88 +151,93 @@ export function InvitesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white">
+      <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color="#2F6FED" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <FlatList
         data={pendingInvites}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={
           <View className="px-5 pt-4">
-            <Text className="text-xs font-medium uppercase text-gray-400">Shareable link</Text>
+            <Text className="text-xs font-medium uppercase text-subtle">Invite link</Text>
             {activeLink?.token ? (
-              <View className="mt-2 rounded-lg border border-gray-200 p-3">
-                <Text className="text-xs text-gray-500" numberOfLines={1}>
-                  {buildJoinLink(activeLink.token)}
-                </Text>
-                <View className="mt-3 flex-row gap-2">
-                  <View className="flex-1">
-                    <Button label="Share" onPress={handleShareLink} />
-                  </View>
-                  <View className="flex-1">
-                    <Button
-                      label="Disable"
-                      variant="secondary"
-                      onPress={handleDisableLink}
-                      loading={linkBusy}
-                    />
-                  </View>
+              <View className="mt-2">
+                <View className="border-b border-divider py-3">
+                  <Text className="text-sm text-ink" numberOfLines={1}>
+                    {buildJoinLink(activeLink.token)}
+                  </Text>
                 </View>
+                <LinkRow icon="share-variant-outline" label="Share link" onPress={handleShareLink} />
+                <LinkRow
+                  icon="autorenew"
+                  label="Change link"
+                  onPress={handleGenerateLink}
+                  busy={linkBusy}
+                />
+                <LinkRow
+                  icon="link-off"
+                  label="Disable link"
+                  onPress={handleDisableLink}
+                  busy={linkBusy}
+                  destructive
+                />
               </View>
             ) : (
               <View className="mt-2">
-                <Button label="Generate link" onPress={handleGenerateLink} loading={linkBusy} />
+                <Button
+                  label="Generate link"
+                  tone="dark"
+                  onPress={handleGenerateLink}
+                  loading={linkBusy}
+                />
               </View>
             )}
 
-            <Text className="mt-6 text-xs font-medium uppercase text-gray-400">
+            <Text className="mb-2 mt-6 text-xs font-medium uppercase text-subtle">
               Invite by email
             </Text>
-            <View className="mt-2">
-              <TextField
-                label="Email"
-                placeholder="friend@example.com"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={(value) => {
-                  setEmail(value);
-                  setEmailSent(false);
-                }}
-              />
-              {emailError ? <Text className="mb-3 text-sm text-red-500">{emailError}</Text> : null}
-              {emailSent ? (
-                <Text className="mb-3 text-sm text-green-600">Invite sent</Text>
-              ) : null}
-              <Button label="Send invite" onPress={handleSendEmailInvite} loading={emailBusy} />
-            </View>
+            <TextField
+              label="Email"
+              tone="dark"
+              placeholder="friend@example.com"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={(value) => {
+                setEmail(value);
+                setEmailSent(false);
+              }}
+            />
+            {emailError ? <Text className="mb-3 text-sm text-red-400">{emailError}</Text> : null}
+            {emailSent ? <Text className="mb-3 text-sm text-green-500">Invite sent</Text> : null}
+            <Button label="Send invite" tone="dark" onPress={handleSendEmailInvite} loading={emailBusy} />
 
-            {error ? <Text className="mt-4 text-sm text-red-500">{error}</Text> : null}
+            {error ? <Text className="mt-4 text-sm text-red-400">{error}</Text> : null}
 
-            <Text className="mb-2 mt-6 text-xs font-medium uppercase text-gray-400">
+            <Text className="mb-2 mt-6 text-xs font-medium uppercase text-subtle">
               Pending invites
             </Text>
           </View>
         }
         renderItem={({ item }) => (
-          <View className="flex-row items-center justify-between border-b border-gray-100 px-5 py-3">
+          <View className="flex-row items-center justify-between border-b border-divider px-5 py-3">
             <View className="flex-1 pr-3">
-              <Text className="text-sm font-medium text-black">
+              <Text className="text-sm font-medium text-ink">
                 {item.type === 'EMAIL' ? item.email : 'Shareable link'}
               </Text>
-              <Text className="text-xs text-gray-500">Invited by {item.invitedByName}</Text>
+              <Text className="text-xs text-subtle">Invited by {item.invitedByName}</Text>
             </View>
             <Pressable onPress={() => handleRevoke(item.id)}>
-              <Text className="text-sm text-red-500">Revoke</Text>
+              <Text className="text-sm text-red-400">Revoke</Text>
             </Pressable>
           </View>
         )}
         ListEmptyComponent={
-          <Text className="px-5 pb-6 text-sm text-gray-400">No pending invites</Text>
+          <Text className="px-5 pb-6 text-sm text-subtle">No pending invites</Text>
         }
       />
     </SafeAreaView>
