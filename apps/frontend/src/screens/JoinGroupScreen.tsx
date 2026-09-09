@@ -21,6 +21,7 @@ export function JoinGroupScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<RouteProp<Record<string, JoinGroupParams>, string>>();
   const hasSession = useAuthStore((state) => Boolean(state.accessToken));
+  const pendingToken = route.params?.token;
 
   const [status, setStatus] = useState<'awaitingToken' | 'pending' | 'error'>(
     route.params?.token ? 'pending' : 'awaitingToken'
@@ -53,9 +54,10 @@ export function JoinGroupScreen() {
   };
 
   useEffect(() => {
-    const token = route.params?.token;
-    if (token) {
-      runJoin(token);
+    // Skip when not logged in: hasSession renders the Login/Signup prompt
+    // below instead, and joining requires an authenticated request.
+    if (hasSession && pendingToken) {
+      runJoin(pendingToken);
     }
     // Only run once for the token this screen was opened with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,16 +69,23 @@ export function JoinGroupScreen() {
         <Logo />
         <Text className="mt-4 text-lg font-medium text-black">Join a group</Text>
         <Text className="mt-1 text-center text-sm text-gray-500">
-          Log in or create an account, then reopen this invite to join.
+          Log in or create an account to join.
         </Text>
         <View className="mt-6 w-full max-w-xs">
           <View className="mb-3">
-            <Button label="Log in" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] })} />
+            <Button
+              label="Log in"
+              onPress={() =>
+                navigation.reset({ index: 0, routes: [{ name: 'Login', params: { token: pendingToken } }] })
+              }
+            />
           </View>
           <Button
             label="Create account"
             variant="secondary"
-            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Signup' }] })}
+            onPress={() =>
+              navigation.reset({ index: 0, routes: [{ name: 'Signup', params: { token: pendingToken } }] })
+            }
           />
         </View>
       </SafeAreaView>

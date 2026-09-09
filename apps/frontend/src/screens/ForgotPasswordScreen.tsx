@@ -58,7 +58,7 @@ export function ForgotPasswordScreen() {
           {sent ? (
             <>
               <Text className="mb-5 text-center text-sm text-gray-700">{sent}</Text>
-              <Button label="Back to login" onPress={() => navigation.navigate('Login')} />
+              <Button label="Back to login" onPress={() => navigation.navigate('Login', {})} />
             </>
           ) : (
             <>
@@ -76,7 +76,7 @@ export function ForgotPasswordScreen() {
                 <Button label="Send reset link" onPress={handleSubmit} loading={loading} />
               </View>
 
-              <Pressable onPress={() => navigation.navigate('Login')} className="items-center">
+              <Pressable onPress={() => navigation.navigate('Login', {})} className="items-center">
                 <Text className="text-sm text-primary">Back to login</Text>
               </Pressable>
             </>

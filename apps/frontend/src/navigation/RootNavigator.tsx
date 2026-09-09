@@ -22,8 +22,8 @@ import { MainTabs } from './MainTabs';
 // standard "stack wraps tabs" pattern for screens that shouldn't show the
 // tab bar (a detail view, a modal-like create form).
 export type RootStackParamList = {
-  Login: undefined;
-  Signup: undefined;
+  Login: { token?: string };
+  Signup: { token?: string };
   ForgotPassword: undefined;
   MainTabs: undefined;
   GroupDetail: { groupId: number };

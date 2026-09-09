@@ -1,9 +1,10 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { login } from '../api/auth';
+import { joinViaInvite } from '../api/invites';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { AuthCard } from '../components/molecules/AuthCard';
@@ -13,9 +14,12 @@ import { getDeviceId } from '../utils/deviceId';
 import { getErrorMessage } from '../utils/errors';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type Route = RouteProp<RootStackParamList, 'Login'>;
 
 export function LoginScreen() {
   const navigation = useNavigation<Navigation>();
+  const route = useRoute<Route>();
+  const pendingToken = route.params?.token;
   const setSession = useAuthStore((state) => state.setSession);
 
   const [email, setEmail] = useState('');
@@ -42,6 +46,25 @@ export function LoginScreen() {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
       });
+
+      if (pendingToken) {
+        try {
+          const joinResponse = await joinViaInvite(pendingToken);
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'GroupDetail', params: { groupId: joinResponse.groupId } }],
+          });
+          return;
+        } catch (joinErr) {
+          // The moment setSession resolves, hasSession flips true and this
+          // screen unmounts (RootNavigator swaps its conditional children),
+          // so any error state set here would never render. Fall through to
+          // the normal post-login destination instead of showing a doomed
+          // error message.
+          getErrorMessage(joinErr);
+        }
+      }
+
       navigation.reset({
         index: 0,
         routes: [{ name: emailVerified ? 'MainTabs' : 'VerifyEmail' }],
@@ -64,7 +87,7 @@ export function LoginScreen() {
       >
         <AuthCard
           activeTab="login"
-          onTabChange={(tab) => tab === 'signup' && navigation.navigate('Signup')}
+          onTabChange={(tab) => tab === 'signup' && navigation.navigate('Signup', { token: pendingToken })}
           tagline="Log in to split expenses with your group"
         >
           <TextField
