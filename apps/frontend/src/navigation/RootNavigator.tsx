@@ -1,8 +1,11 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
+import { AddFriendScreen } from '../screens/AddFriendScreen';
+import { AddFriendExpenseScreen } from '../screens/AddFriendExpenseScreen';
 import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
+import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordParams, ResetPasswordScreen } from '../screens/ResetPasswordScreen';
@@ -26,6 +29,9 @@ export type RootStackParamList = {
   MainTabs: undefined;
   GroupDetail: { groupId: number };
   CreateGroup: undefined;
+  FriendDetail: { friendUserId: number };
+  AddFriend: undefined;
+  AddFriendExpense: { friendUserId: number };
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
 };
@@ -58,6 +64,21 @@ export function RootNavigator() {
             name="CreateGroup"
             component={CreateGroupScreen}
             options={{ headerShown: true, title: 'New group', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="FriendDetail"
+            component={FriendDetailScreen}
+            options={{ headerShown: true, title: '' }}
+          />
+          <Stack.Screen
+            name="AddFriend"
+            component={AddFriendScreen}
+            options={{ headerShown: true, title: 'Add friend', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="AddFriendExpense"
+            component={AddFriendExpenseScreen}
+            options={{ headerShown: true, title: 'Add expense', presentation: 'modal' }}
           />
         </>
       ) : (

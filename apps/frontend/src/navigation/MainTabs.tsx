@@ -2,10 +2,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { AccountScreen } from '../screens/AccountScreen';
+import { FriendsListScreen } from '../screens/FriendsListScreen';
 import { GroupsListScreen } from '../screens/GroupsListScreen';
 
 export type MainTabsParamList = {
   Groups: undefined;
+  Friends: undefined;
   Account: undefined;
 };
 
@@ -26,6 +28,15 @@ export function MainTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account-group" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Friends"
+        component={FriendsListScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account-multiple" color={color} size={size} />
           ),
         }}
       />
