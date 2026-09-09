@@ -1,20 +1,37 @@
+import './global.css';
+
+import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { useAuthStore } from './src/store/authStore';
+
+const linking: LinkingOptions<Record<string, unknown>> = {
+  prefixes: [Linking.createURL('/'), 'billbuddy://'],
+  config: {
+    screens: {
+      ResetPassword: 'reset-password',
+      VerifyEmail: 'verify-email',
+    },
+  },
+};
 
 export default function App() {
+  const hydrate = useAuthStore((state) => state.hydrate);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
+    <SafeAreaProvider>
+      <NavigationContainer linking={linking}>
+        <RootNavigator />
+      </NavigationContainer>
       <StatusBar style="auto" />
-    </View>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
