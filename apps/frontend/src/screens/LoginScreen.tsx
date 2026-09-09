@@ -1,9 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { login } from '../api/auth';
+import { getProfile } from '../api/users';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { AuthCard } from '../components/molecules/AuthCard';
@@ -17,6 +18,7 @@ type Navigation = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 export function LoginScreen() {
   const navigation = useNavigation<Navigation>();
   const setSession = useAuthStore((state) => state.setSession);
+  const setEmailVerified = useAuthStore((state) => state.setEmailVerified);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +44,13 @@ export function LoginScreen() {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
       });
+      try {
+        const profile = await getProfile();
+        await setEmailVerified(profile.emailVerified);
+      } catch {
+        // Non-critical: the email-verified banner just won't be accurate
+        // until the next profile fetch.
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -77,6 +86,13 @@ export function LoginScreen() {
             value={password}
             onChangeText={setPassword}
           />
+
+          <Pressable
+            onPress={() => navigation.navigate('ForgotPassword')}
+            className="mb-3.5 items-end"
+          >
+            <Text className="text-xs text-primary">Forgot password?</Text>
+          </Pressable>
 
           {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
 

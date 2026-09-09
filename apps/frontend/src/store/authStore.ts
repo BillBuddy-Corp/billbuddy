@@ -9,10 +9,11 @@ export type AuthUser = {
   userId: number;
   email: string;
   fullName: string;
+  emailVerified: boolean;
 };
 
 type Session = {
-  user: AuthUser;
+  user: Omit<AuthUser, 'emailVerified'>;
   accessToken: string;
   refreshToken: string;
 };
@@ -25,21 +26,37 @@ type AuthState = {
   setSession: (session: Session) => Promise<void>;
   clearSession: () => Promise<void>;
   hydrate: () => Promise<void>;
+  setEmailVerified: (emailVerified: boolean) => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+async function persistUser(user: AuthUser) {
+  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
   refreshToken: null,
   isHydrated: false,
 
   setSession: async ({ user, accessToken, refreshToken }) => {
+    const fullUser: AuthUser = { ...user, emailVerified: false };
     await Promise.all([
       SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
       SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
-      SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
+      persistUser(fullUser),
     ]);
-    set({ user, accessToken, refreshToken });
+    set({ user: fullUser, accessToken, refreshToken });
+  },
+
+  setEmailVerified: async (emailVerified) => {
+    const current = get().user;
+    if (!current) {
+      return;
+    }
+    const updated: AuthUser = { ...current, emailVerified };
+    await persistUser(updated);
+    set({ user: updated });
   },
 
   clearSession: async () => {

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { logout } from '../api/auth';
 import { Button } from '../components/atoms/Button';
 import { Logo } from '../components/atoms/Logo';
+import { VerifyEmailBanner } from '../components/molecules/VerifyEmailBanner';
 import { useAuthStore } from '../store/authStore';
 import { getDeviceId } from '../utils/deviceId';
 
@@ -32,6 +33,11 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
+      {user && !user.emailVerified ? (
+        <View className="px-4 pt-3">
+          <VerifyEmailBanner />
+        </View>
+      ) : null}
       <View className="flex-1 items-center justify-center px-6">
         <Logo />
         <Text className="mt-4 text-lg font-medium text-black">

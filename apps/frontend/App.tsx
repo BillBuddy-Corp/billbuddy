@@ -1,12 +1,23 @@
 import './global.css';
 
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { useAuthStore } from './src/store/authStore';
+
+const linking: LinkingOptions<Record<string, unknown>> = {
+  prefixes: [Linking.createURL('/'), 'billbuddy://'],
+  config: {
+    screens: {
+      ResetPassword: 'reset-password',
+      VerifyEmail: 'verify-email',
+    },
+  },
+};
 
 export default function App() {
   const hydrate = useAuthStore((state) => state.hydrate);
@@ -17,7 +28,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <RootNavigator />
       </NavigationContainer>
       <StatusBar style="auto" />
