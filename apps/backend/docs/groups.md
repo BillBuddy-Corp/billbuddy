@@ -121,8 +121,8 @@ Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT
 
 ---
 
-### `POST /groups/{groupId}/invites/email` — Admin only
-Emails an invite link to the given address via Gmail SMTP. Token is stored hashed and never returned in any response.
+### `POST /groups/{groupId}/invites/email`
+Emails an invite link to the given address via Gmail SMTP. Token is stored hashed and never returned in any response. Any active group member can send one, not just Admins.
 
 **Request**
 ```json
@@ -134,12 +134,12 @@ Emails an invite link to the given address via Gmail SMTP. Token is stored hashe
 { "message": "Invite sent" }
 ```
 
-Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, `404 GROUP_NOT_FOUND` if the group doesn't exist, or `409 ALREADY_GROUP_MEMBER` if `email` already belongs to an active member.
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `404 GROUP_NOT_FOUND` if the group doesn't exist, or `409 ALREADY_GROUP_MEMBER` if `email` already belongs to an active member.
 
 ---
 
-### `GET /groups/{groupId}/invites` — Admin only
-Lists all pending invites, both email and shareable-link. Email-invite `token` is always `null` (delivered only via email); link-invite `token` is the raw, shareable value.
+### `GET /groups/{groupId}/invites`
+Lists all pending invites, both email and shareable-link. Email-invite `token` is always `null` (delivered only via email); link-invite `token` is the raw, shareable value. Any active group member can view this list, not just Admins.
 
 **Response** `200 OK`
 ```json
@@ -169,7 +169,7 @@ Lists all pending invites, both email and shareable-link. Email-invite `token` i
 ]
 ```
 
-Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, or `403 NOT_GROUP_ADMIN` if they're a member but not an Admin.
+Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member.
 
 ---
 

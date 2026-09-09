@@ -30,11 +30,11 @@ public class GroupInviteController {
     }
 
     @PostMapping("/email")
-    @Operation(summary = "Send an email invite", description = "Emails an invite link to the given address; Admin only")
+    @Operation(summary = "Send an email invite", description = "Emails an invite link to the given address; any active group member can send one")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Invite sent successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid email"),
-            @ApiResponse(responseCode = "403", description = "Not a group admin"),
+            @ApiResponse(responseCode = "403", description = "Not a member of this group"),
             @ApiResponse(responseCode = "404", description = "Group not found"),
             @ApiResponse(responseCode = "409", description = "User is already a member")
     })
@@ -49,10 +49,10 @@ public class GroupInviteController {
     }
 
     @GetMapping
-    @Operation(summary = "List pending invites", description = "Lists both email and shareable-link invites; Admin only")
+    @Operation(summary = "List pending invites", description = "Lists both email and shareable-link invites; any active group member can view")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Invites retrieved successfully"),
-            @ApiResponse(responseCode = "403", description = "Not a group admin")
+            @ApiResponse(responseCode = "403", description = "Not a member of this group")
     })
     public ResponseEntity<List<GroupInviteResponse>> listInvites(
             @AuthenticationPrincipal Long userId,
