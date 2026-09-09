@@ -11,9 +11,18 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { getDeviceId } from '../utils/deviceId';
 
-type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+// Navigating to VerifyEmail (a root-level screen) works via plain
+// navigate() bubbling up through the tab navigator automatically. Logout
+// does NOT use an explicit reset here on purpose: this screen is nested
+// inside MainTabs, so a reset() called on this local navigation object
+// would only reset the tab navigator, not the root stack. clearSession()
+// flips hasSession false, which removes MainTabs from the root stack's
+// conditional screens entirely — React Navigation's documented behavior
+// for this pattern is to fall back to the newly-available default (Login)
+// automatically, regardless of how deeply the removed screen was nested.
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
-export function HomeScreen() {
+export function AccountScreen() {
   const navigation = useNavigation<Navigation>();
   const user = useAuthStore((state) => state.user);
   const refreshToken = useAuthStore((state) => state.refreshToken);
@@ -33,7 +42,6 @@ export function HomeScreen() {
     } finally {
       await clearSession();
       setLoggingOut(false);
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     }
   };
 

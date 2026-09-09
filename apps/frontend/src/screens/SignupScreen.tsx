@@ -52,7 +52,7 @@ export function SignupScreen() {
       });
       navigation.reset({
         index: 0,
-        routes: [{ name: emailVerified ? 'Home' : 'VerifyEmail' }],
+        routes: [{ name: emailVerified ? 'MainTabs' : 'VerifyEmail' }],
       });
     } catch (err) {
       setError(getErrorMessage(err));
