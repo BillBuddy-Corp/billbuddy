@@ -4,10 +4,10 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Expense } from '../api/expenses';
 import {
   Friend,
   FriendBalance,
-  FriendExpense,
   getFriendBalance,
   listFriendExpenses,
   listFriends,
@@ -43,7 +43,7 @@ export function FriendDetailScreen() {
 
   const [friend, setFriend] = useState<Friend | null>(null);
   const [balances, setBalances] = useState<FriendBalance[]>([]);
-  const [expenses, setExpenses] = useState<FriendExpense[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 

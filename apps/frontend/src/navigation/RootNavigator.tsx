@@ -3,12 +3,15 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { AddFriendScreen } from '../screens/AddFriendScreen';
 import { AddFriendExpenseScreen } from '../screens/AddFriendExpenseScreen';
+import { AddGroupExpenseScreen } from '../screens/AddGroupExpenseScreen';
+import { BalancesScreen } from '../screens/BalancesScreen';
 import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
 import { GroupSettingsScreen } from '../screens/GroupSettingsScreen';
 import { InvitesScreen } from '../screens/InvitesScreen';
+import { SettleUpScreen } from '../screens/SettleUpScreen';
 import { JoinGroupParams, JoinGroupScreen } from '../screens/JoinGroupScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordParams, ResetPasswordScreen } from '../screens/ResetPasswordScreen';
@@ -37,6 +40,9 @@ export type RootStackParamList = {
   AddFriendExpense: { friendUserId: number };
   GroupSettings: { groupId: number };
   Invites: { groupId: number; isAdmin: boolean };
+  AddGroupExpense: { groupId: number };
+  SettleUp: { groupId: number };
+  Balances: { groupId: number };
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
   JoinGroup: JoinGroupParams;
@@ -71,11 +77,7 @@ export function RootNavigator() {
       {hasSession ? (
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen
-            name="GroupDetail"
-            component={GroupDetailScreen}
-            options={{ headerShown: true, title: '' }}
-          />
+          <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen
             name="CreateGroup"
             component={CreateGroupScreen}
@@ -105,6 +107,21 @@ export function RootNavigator() {
             name="Invites"
             component={InvitesScreen}
             options={{ ...darkHeaderOptions, title: 'Invite people' }}
+          />
+          <Stack.Screen
+            name="AddGroupExpense"
+            component={AddGroupExpenseScreen}
+            options={{ ...darkHeaderOptions, title: 'Add expense', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="SettleUp"
+            component={SettleUpScreen}
+            options={{ ...darkHeaderOptions, title: 'Settle up' }}
+          />
+          <Stack.Screen
+            name="Balances"
+            component={BalancesScreen}
+            options={{ ...darkHeaderOptions, title: 'Balances' }}
           />
         </>
       ) : (

@@ -41,19 +41,25 @@ export function GroupsListScreen() {
         })
       );
       setRows(withBalances);
-
-      const friends = await listFriends();
-      const friendBalances = await Promise.all(
-        friends.map(async (f) => {
-          const expenses = await listFriendExpenses(f.userId).catch(() => []);
-          return nonGroupBalanceFromExpenses(expenses, currentUserId);
-        })
-      );
-      const merged = new Map<string, number>();
-      friendBalances.flat().forEach((b) => merged.set(b.currency, (merged.get(b.currency) ?? 0) + b.amount));
-      setNonGroupBalances(Array.from(merged, ([currency, amount]) => ({ currency, amount })));
-
       setError('');
+
+      // Non-group balances are a secondary aggregate on this screen (the
+      // primary content is the group list above) -- a failure here shouldn't
+      // blank out an otherwise-successful group list.
+      try {
+        const friends = await listFriends();
+        const friendBalances = await Promise.all(
+          friends.map(async (f) => {
+            const expenses = await listFriendExpenses(f.userId).catch(() => []);
+            return nonGroupBalanceFromExpenses(expenses, currentUserId);
+          })
+        );
+        const merged = new Map<string, number>();
+        friendBalances.flat().forEach((b) => merged.set(b.currency, (merged.get(b.currency) ?? 0) + b.amount));
+        setNonGroupBalances(Array.from(merged, ([currency, amount]) => ({ currency, amount })));
+      } catch {
+        setNonGroupBalances([]);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

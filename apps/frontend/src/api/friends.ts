@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { Expense } from './expenses';
 
 export type Friend = {
   userId: number;
@@ -11,33 +12,6 @@ export type FriendBalance = {
   currency: string;
   // positive: the friend owes you. negative: you owe the friend.
   amount: number;
-};
-
-export type FriendExpensePayer = { userId: number; fullName: string; amountPaid: number };
-export type FriendExpenseSplit = {
-  userId: number;
-  fullName: string;
-  amountOwed: number;
-  percentage: number | null;
-};
-
-export type FriendExpense = {
-  id: number;
-  groupId: number | null;
-  description: string;
-  amount: number;
-  currency: string;
-  convertedAmount: number;
-  exchangeRate: number;
-  category: string | null;
-  receiptUrl: string | null;
-  splitType: 'EQUAL' | 'PERCENTAGE' | 'EXACT' | 'ITEMIZED';
-  createdByUserId: number;
-  createdByName: string;
-  payers: FriendExpensePayer[];
-  splits: FriendExpenseSplit[];
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type CreateFriendExpenseRequest = {
@@ -68,8 +42,8 @@ export async function getFriendBalance(friendUserId: number): Promise<FriendBala
   return data;
 }
 
-export async function listFriendExpenses(friendUserId: number): Promise<FriendExpense[]> {
-  const { data } = await apiClient.get<FriendExpense[]>(`/friends/${friendUserId}/expenses`);
+export async function listFriendExpenses(friendUserId: number): Promise<Expense[]> {
+  const { data } = await apiClient.get<Expense[]>(`/friends/${friendUserId}/expenses`);
   return data;
 }
 
@@ -78,7 +52,7 @@ export async function listFriendExpenses(friendUserId: number): Promise<FriendEx
 // only" total -- using it there double-counts any shared-group debt. This mirrors the backend's
 // own paid-minus-owed math (BalanceService.getFriendBalance), computed client-side from the
 // non-group expenses list instead, since there's no "non-group only" endpoint.
-export function nonGroupBalanceFromExpenses(expenses: FriendExpense[], currentUserId: number): FriendBalance[] {
+export function nonGroupBalanceFromExpenses(expenses: Expense[], currentUserId: number): FriendBalance[] {
   const byCurrency = new Map<string, number>();
   for (const expense of expenses) {
     for (const payer of expense.payers) {
@@ -101,8 +75,8 @@ export async function createFriendExpense(
   friendUserId: number,
   currentUserId: number,
   request: CreateFriendExpenseRequest
-): Promise<FriendExpense> {
-  const { data } = await apiClient.post<FriendExpense>(`/friends/${friendUserId}/expenses`, {
+): Promise<Expense> {
+  const { data } = await apiClient.post<Expense>(`/friends/${friendUserId}/expenses`, {
     description: request.description,
     amount: request.amount,
     currency: request.currency,
