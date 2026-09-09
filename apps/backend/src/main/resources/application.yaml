@@ -60,7 +60,7 @@ fx:
   base-url: ${FX_API_BASE_URL:https://api.frankfurter.dev/v1}
 
 app:
-  join-link-base-url: ${JOIN_LINK_BASE_URL:http://localhost:3000/invites/join}
+  join-link-base-url: ${JOIN_LINK_BASE_URL:billbuddy://join-group}
   reset-password-base-url: ${RESET_PASSWORD_BASE_URL:billbuddy://reset-password}
   verify-email-base-url: ${VERIFY_EMAIL_BASE_URL:billbuddy://verify-email}
   email-change-base-url: ${EMAIL_CHANGE_BASE_URL:http://localhost:3000/auth/confirm-email-change}
