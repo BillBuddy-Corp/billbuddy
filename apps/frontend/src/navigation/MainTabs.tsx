@@ -20,6 +20,7 @@ export function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: '#2F6FED',
         tabBarInactiveTintColor: '#9CA3AF',
+        tabBarStyle: { backgroundColor: '#0D0D0D', borderTopColor: '#2C2C2E' },
       }}
     >
       <Tab.Screen

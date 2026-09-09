@@ -73,6 +73,28 @@ export async function listFriendExpenses(friendUserId: number): Promise<FriendEx
   return data;
 }
 
+// getFriendBalance() intentionally combines shared-group debt with non-group debt (that's the
+// whole point of the Friends balance feature). That makes it the wrong source for a "non-group
+// only" total -- using it there double-counts any shared-group debt. This mirrors the backend's
+// own paid-minus-owed math (BalanceService.getFriendBalance), computed client-side from the
+// non-group expenses list instead, since there's no "non-group only" endpoint.
+export function nonGroupBalanceFromExpenses(expenses: FriendExpense[], currentUserId: number): FriendBalance[] {
+  const byCurrency = new Map<string, number>();
+  for (const expense of expenses) {
+    for (const payer of expense.payers) {
+      if (payer.userId === currentUserId) {
+        byCurrency.set(expense.currency, (byCurrency.get(expense.currency) ?? 0) + payer.amountPaid);
+      }
+    }
+    for (const split of expense.splits) {
+      if (split.userId === currentUserId) {
+        byCurrency.set(expense.currency, (byCurrency.get(expense.currency) ?? 0) - split.amountOwed);
+      }
+    }
+  }
+  return Array.from(byCurrency, ([currency, amount]) => ({ currency, amount }));
+}
+
 // Always an equal split between the caller and the friend -- the only split type this slice's
 // UI supports; the backend itself handles PERCENTAGE/EXACT/ITEMIZED too, for future UI.
 export async function createFriendExpense(

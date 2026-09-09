@@ -48,3 +48,14 @@ export async function listMembers(groupId: number): Promise<GroupMember[]> {
   const { data } = await apiClient.get<GroupMember[]>(`/groups/${groupId}/members`);
   return data;
 }
+
+export type GroupBalance = {
+  userId: number;
+  fullName: string;
+  netBalance: number;
+};
+
+export async function getGroupBalances(groupId: number): Promise<GroupBalance[]> {
+  const { data } = await apiClient.get<GroupBalance[]>(`/groups/${groupId}/balances`);
+  return data;
+}
