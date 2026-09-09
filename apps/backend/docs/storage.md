@@ -58,6 +58,7 @@ Returns the authenticated user's profile.
   "id": 1,
   "fullName": "Jane Doe",
   "email": "jane@example.com",
+  "emailVerified": false,
   "pendingEmail": null,
   "mobileNumber": null,
   "mobileVerified": false,
@@ -66,7 +67,7 @@ Returns the authenticated user's profile.
   "createdAt": "2026-08-29T10:00:00"
 }
 ```
-`profilePicUrl` is `null` if no picture has been set. `mobileVerified` is only ever `true` if `mobileNumber` is also set, see `auth.md` for the OTP flow that sets it. `pendingEmail` is set while an email change is awaiting confirmation (`email` itself doesn't change until then), see `auth.md` for the change-email flow.
+`profilePicUrl` is `null` if no picture has been set. `emailVerified` reflects whether the account's current `email` has been confirmed, see `auth.md` for the verify-email flow that sets it — a pending email change (`pendingEmail`) has no effect on it until the change is confirmed, at which point `email` itself changes and is verified in the same step. `mobileVerified` is only ever `true` if `mobileNumber` is also set, see `auth.md` for the OTP flow that sets it. `pendingEmail` is set while an email change is awaiting confirmation (`email` itself doesn't change until then), see `auth.md` for the change-email flow.
 
 ---
 

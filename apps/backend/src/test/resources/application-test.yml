@@ -54,7 +54,7 @@ claude:
 
 app:
   join-link-base-url: http://localhost:3000/invites/join
-  reset-password-base-url: http://localhost:3000/auth/reset-password
-  verify-email-base-url: http://localhost:3000/auth/verify-email
+  reset-password-base-url: billbuddy://reset-password
+  verify-email-base-url: billbuddy://verify-email
   email-change-base-url: http://localhost:3000/auth/confirm-email-change
   upload-dir: ./target/test-uploads

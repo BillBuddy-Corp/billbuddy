@@ -12,6 +12,7 @@ public class UserProfileResponse {
     private Long id;
     private String fullName;
     private String email;
+    private boolean emailVerified;
     private String pendingEmail;
     private String mobileNumber;
     private boolean mobileVerified;

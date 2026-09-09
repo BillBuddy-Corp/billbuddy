@@ -149,7 +149,7 @@ Lists all active sessions for the authenticated user. Requires an `X-Device-Id` 
 
 Signup now also fires a verification email automatically, best-effort — a transient send failure never fails signup itself, and `POST /auth/verify-email/resend` is the fallback if it never arrives.
 
-The verify/reset flow is link-based, matching how group invite links already work: the email contains a link to a frontend page carrying the raw token as a query parameter; the frontend reads it and calls the corresponding API below. The raw token is never persisted anywhere — only its SHA-256 hash is stored — so it only ever exists inside the email itself.
+The verify/reset flow is link-based, matching how group invite links already work: the email contains a deep link (`billbuddy://reset-password?token=...` / `billbuddy://verify-email?token=...`) carrying the raw token as a query parameter; tapping it opens the app directly to a screen that reads the token and calls the corresponding API below. The raw token is never persisted anywhere — only its SHA-256 hash is stored — so it only ever exists inside the email itself.
 
 Password reset and password change both revoke every active session (all refresh tokens) for the account, forcing re-login on every device. Unverified accounts are **not** blocked from doing anything — verification status is tracked and exposed, nothing is gated on it.
 

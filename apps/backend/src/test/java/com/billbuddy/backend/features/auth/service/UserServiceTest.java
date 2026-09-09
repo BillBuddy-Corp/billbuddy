@@ -61,6 +61,18 @@ class UserServiceTest {
         assertThat(response.getId()).isEqualTo(1L);
         assertThat(response.getFullName()).isEqualTo("User 1");
         assertThat(response.getProfilePicUrl()).isNull();
+        assertThat(response.isEmailVerified()).isFalse();
+    }
+
+    @Test
+    void getProfile_returnsEmailVerifiedTrue_whenEmailVerifiedAtIsSet() {
+        User user = buildUser(1L);
+        ReflectionTestUtils.setField(user, "emailVerifiedAt", java.time.LocalDateTime.now());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UserProfileResponse response = userService.getProfile(1L);
+
+        assertThat(response.isEmailVerified()).isTrue();
     }
 
     @Test
