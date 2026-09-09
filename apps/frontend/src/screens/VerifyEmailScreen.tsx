@@ -87,10 +87,10 @@ export function VerifyEmailScreen() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 items-center justify-center bg-white px-6">
+    <SafeAreaView className="flex-1 items-center justify-center bg-background px-6">
       <Logo />
-      <Text className="mt-4 text-lg font-medium text-black">Verify your email</Text>
-      <Text className="mt-1 text-center text-sm text-gray-500">
+      <Text className="mt-4 text-lg font-medium text-ink">Verify your email</Text>
+      <Text className="mt-1 text-center text-sm text-subtle">
         We sent a verification link to your email. Paste it below, or the token from it.
       </Text>
 
@@ -105,7 +105,7 @@ export function VerifyEmailScreen() {
             onChangeText={setLinkInput}
             autoCapitalize="none"
           />
-          {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+          {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
           <Button label="Continue" onPress={handleContinue} />
 
           {hasSession ? (
@@ -124,7 +124,7 @@ export function VerifyEmailScreen() {
 
           {hasSession ? (
             <Pressable onPress={goHome} className="mt-6 items-center">
-              <Text className="text-sm text-gray-400">Skip for now</Text>
+              <Text className="text-sm text-subtle">Skip for now</Text>
             </Pressable>
           ) : null}
         </View>
@@ -132,7 +132,7 @@ export function VerifyEmailScreen() {
 
       {status === 'success' || status === 'error' ? (
         <>
-          <Text className="mt-3 text-center text-sm text-gray-500">
+          <Text className="mt-3 text-center text-sm text-subtle">
             {status === 'success' ? 'Email verified successfully.' : error}
           </Text>
           <View className="mt-6 w-full max-w-xs">

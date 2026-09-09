@@ -39,25 +39,25 @@ export function ForgotPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-primary-tint"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="w-full rounded-2xl border border-gray-200 bg-white px-6 py-7">
+        <View className="w-full rounded-2xl border border-divider bg-surface px-6 py-7">
           <View className="mb-7 items-center">
             <Logo />
-            <Text className="mt-3 text-lg font-medium text-black">Reset your password</Text>
-            <Text className="mt-1 text-center text-sm text-gray-500">
+            <Text className="mt-3 text-lg font-medium text-ink">Reset your password</Text>
+            <Text className="mt-1 text-center text-sm text-subtle">
               Enter your email and we'll send you a reset link
             </Text>
           </View>
 
           {sent ? (
             <>
-              <Text className="mb-5 text-center text-sm text-gray-700">{sent}</Text>
+              <Text className="mb-5 text-center text-sm text-ink">{sent}</Text>
               <Button label="Back to login" onPress={() => navigation.navigate('Login', {})} />
             </>
           ) : (
@@ -70,7 +70,7 @@ export function ForgotPasswordScreen() {
                 onChangeText={setEmail}
               />
 
-              {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+              {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
               <View className="mb-4">
                 <Button label="Send reset link" onPress={handleSubmit} loading={loading} />

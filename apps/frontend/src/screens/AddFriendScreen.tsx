@@ -37,11 +37,11 @@ export function AddFriendScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-        <Text className="mb-4 text-sm text-gray-500">
+        <Text className="mb-4 text-sm text-subtle">
           They must already have a BillBuddy account. Adding a friend is instant, no approval
           needed.
         </Text>
@@ -53,7 +53,7 @@ export function AddFriendScreen() {
           onChangeText={setEmail}
         />
 
-        {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+        {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
         <View className="mt-2">
           <Button label="Add friend" onPress={handleAdd} loading={loading} />

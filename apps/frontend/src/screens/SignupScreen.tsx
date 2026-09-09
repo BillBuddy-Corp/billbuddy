@@ -84,7 +84,7 @@ export function SignupScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-primary-tint"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
@@ -117,16 +117,16 @@ export function SignupScreen() {
             onChangeText={setPassword}
           />
 
-          {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+          {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
           <View className="mb-4">
             <Button label="Create account" onPress={handleSignup} loading={loading} />
           </View>
 
           <View className="mb-4 flex-row items-center">
-            <View className="h-px flex-1 bg-gray-200" />
-            <Text className="mx-2.5 text-xs text-gray-400">or</Text>
-            <View className="h-px flex-1 bg-gray-200" />
+            <View className="h-px flex-1 bg-divider" />
+            <Text className="mx-2.5 text-xs text-subtle">or</Text>
+            <View className="h-px flex-1 bg-divider" />
           </View>
 
           <Button label="Continue with Google" variant="secondary" onPress={() => {}} />

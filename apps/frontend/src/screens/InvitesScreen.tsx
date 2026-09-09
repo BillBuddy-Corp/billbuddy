@@ -195,7 +195,6 @@ export function InvitesScreen() {
               <View className="mt-2">
                 <Button
                   label="Generate link"
-                  tone="dark"
                   onPress={handleGenerateLink}
                   loading={linkBusy}
                 />
@@ -211,7 +210,6 @@ export function InvitesScreen() {
             </Text>
             <TextField
               label="Email"
-              tone="dark"
               placeholder="friend@example.com"
               keyboardType="email-address"
               value={email}
@@ -222,7 +220,7 @@ export function InvitesScreen() {
             />
             {emailError ? <Text className="mb-3 text-sm text-red-400">{emailError}</Text> : null}
             {emailSent ? <Text className="mb-3 text-sm text-green-500">Invite sent</Text> : null}
-            <Button label="Send invite" tone="dark" onPress={handleSendEmailInvite} loading={emailBusy} />
+            <Button label="Send invite" onPress={handleSendEmailInvite} loading={emailBusy} />
 
             {error ? <Text className="mt-4 text-sm text-red-400">{error}</Text> : null}
 

@@ -47,7 +47,7 @@ export function CreateGroupScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
@@ -66,7 +66,7 @@ export function CreateGroupScreen() {
           onChangeText={setDefaultCurrency}
         />
 
-        {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+        {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
         <View className="mt-2">
           <Button label="Create group" onPress={handleCreate} loading={loading} />

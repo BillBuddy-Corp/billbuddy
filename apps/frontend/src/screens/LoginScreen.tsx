@@ -78,7 +78,7 @@ export function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-primary-tint"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
@@ -112,16 +112,16 @@ export function LoginScreen() {
             <Text className="text-xs text-primary">Forgot password?</Text>
           </Pressable>
 
-          {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+          {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
           <View className="mb-4">
             <Button label="Log in" onPress={handleLogin} loading={loading} />
           </View>
 
           <View className="mb-4 flex-row items-center">
-            <View className="h-px flex-1 bg-gray-200" />
-            <Text className="mx-2.5 text-xs text-gray-400">or</Text>
-            <View className="h-px flex-1 bg-gray-200" />
+            <View className="h-px flex-1 bg-divider" />
+            <Text className="mx-2.5 text-xs text-subtle">or</Text>
+            <View className="h-px flex-1 bg-divider" />
           </View>
 
           <Button label="Continue with Google" variant="secondary" onPress={() => {}} />

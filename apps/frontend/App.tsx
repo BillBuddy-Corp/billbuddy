@@ -1,6 +1,6 @@
 import './global.css';
 
-import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import { DarkTheme, NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -20,6 +20,21 @@ const linking: LinkingOptions<Record<string, unknown>> = {
   },
 };
 
+// The app is dark-theme-only (no light/dark toggle), so the navigator's own
+// theme is fixed to a dark palette too -- otherwise the brief background
+// shown during screen transitions/gestures defaults to white.
+const navigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: '#2F6FED',
+    background: '#0D0D0D',
+    card: '#0D0D0D',
+    border: '#2C2C2E',
+    text: '#F5F5F7',
+  },
+};
+
 export default function App() {
   const hydrate = useAuthStore((state) => state.hydrate);
 
@@ -29,10 +44,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer linking={linking} theme={navigationTheme}>
         <RootNavigator />
       </NavigationContainer>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </SafeAreaProvider>
   );
 }

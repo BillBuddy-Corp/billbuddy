@@ -65,10 +65,10 @@ export function JoinGroupScreen() {
 
   if (!hasSession) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white px-6">
+      <SafeAreaView className="flex-1 items-center justify-center bg-background px-6">
         <Logo />
-        <Text className="mt-4 text-lg font-medium text-black">Join a group</Text>
-        <Text className="mt-1 text-center text-sm text-gray-500">
+        <Text className="mt-4 text-lg font-medium text-ink">Join a group</Text>
+        <Text className="mt-1 text-center text-sm text-subtle">
           Log in or create an account to join.
         </Text>
         <View className="mt-6 w-full max-w-xs">
@@ -93,10 +93,10 @@ export function JoinGroupScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 items-center justify-center bg-white px-6">
+    <SafeAreaView className="flex-1 items-center justify-center bg-background px-6">
       <Logo />
-      <Text className="mt-4 text-lg font-medium text-black">Join a group</Text>
-      <Text className="mt-1 text-center text-sm text-gray-500">
+      <Text className="mt-4 text-lg font-medium text-ink">Join a group</Text>
+      <Text className="mt-1 text-center text-sm text-subtle">
         Paste the invite link or token you were sent.
       </Text>
 
@@ -111,7 +111,7 @@ export function JoinGroupScreen() {
             onChangeText={setLinkInput}
             autoCapitalize="none"
           />
-          {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+          {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
           <Button label="Join group" onPress={handleContinue} />
         </View>
       ) : null}

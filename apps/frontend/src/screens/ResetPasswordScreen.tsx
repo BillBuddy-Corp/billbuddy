@@ -55,22 +55,22 @@ export function ResetPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-primary-tint"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="w-full rounded-2xl border border-gray-200 bg-white px-6 py-7">
+        <View className="w-full rounded-2xl border border-divider bg-surface px-6 py-7">
           <View className="mb-7 items-center">
             <Logo />
-            <Text className="mt-3 text-lg font-medium text-black">Set a new password</Text>
+            <Text className="mt-3 text-lg font-medium text-ink">Set a new password</Text>
           </View>
 
           {done ? (
             <>
-              <Text className="mb-5 text-center text-sm text-gray-700">
+              <Text className="mb-5 text-center text-sm text-ink">
                 Your password has been reset. Log in with your new password.
               </Text>
               <Button
@@ -96,7 +96,7 @@ export function ResetPasswordScreen() {
                 onChangeText={setNewPassword}
               />
 
-              {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+              {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
               <Button label="Reset password" onPress={handleSubmit} loading={loading} />
             </>

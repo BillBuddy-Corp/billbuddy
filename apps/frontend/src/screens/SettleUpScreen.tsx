@@ -127,14 +127,12 @@ export function SettleUpScreen() {
                 <View className="mt-4">
                   <TextField
                     label={`Amount (${group.defaultCurrency})`}
-                    tone="dark"
                     keyboardType="decimal-pad"
                     value={amountText}
                     onChangeText={setAmountText}
                   />
                   <TextField
                     label="Note (optional)"
-                    tone="dark"
                     placeholder="Cash at dinner"
                     value={note}
                     onChangeText={setNote}
@@ -142,7 +140,6 @@ export function SettleUpScreen() {
                   {formError ? <Text className="mb-3 text-sm text-red-400">{formError}</Text> : null}
                   <Button
                     label="Record payment"
-                    tone="dark"
                     onPress={() => handleRecord(item)}
                     loading={submitting}
                   />

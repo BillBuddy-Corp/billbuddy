@@ -68,7 +68,7 @@ export function RootNavigator() {
 
   if (!isHydrated) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color="#2F6FED" />
       </View>
     );
@@ -83,17 +83,17 @@ export function RootNavigator() {
           <Stack.Screen
             name="CreateGroup"
             component={CreateGroupScreen}
-            options={{ headerShown: true, title: 'New group', presentation: 'modal' }}
+            options={{ ...darkHeaderOptions, title: 'New group', presentation: 'modal' }}
           />
           <Stack.Screen
             name="FriendDetail"
             component={FriendDetailScreen}
-            options={{ headerShown: true, title: '' }}
+            options={{ ...darkHeaderOptions, title: '' }}
           />
           <Stack.Screen
             name="AddFriend"
             component={AddFriendScreen}
-            options={{ headerShown: true, title: 'Add friend', presentation: 'modal' }}
+            options={{ ...darkHeaderOptions, title: 'Add friend', presentation: 'modal' }}
           />
           <Stack.Screen
             name="GroupSettings"
