@@ -53,7 +53,7 @@ function buildJoinLink(token: string): string {
 
 export function InvitesScreen() {
   const route = useRoute<Route>();
-  const { groupId } = route.params;
+  const { groupId, isAdmin } = route.params;
 
   const [invites, setInvites] = useState<GroupInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,21 +173,25 @@ export function InvitesScreen() {
                   </Text>
                 </View>
                 <LinkRow icon="share-variant-outline" label="Share link" onPress={handleShareLink} />
-                <LinkRow
-                  icon="autorenew"
-                  label="Change link"
-                  onPress={handleGenerateLink}
-                  busy={linkBusy}
-                />
-                <LinkRow
-                  icon="link-off"
-                  label="Disable link"
-                  onPress={handleDisableLink}
-                  busy={linkBusy}
-                  destructive
-                />
+                {isAdmin ? (
+                  <>
+                    <LinkRow
+                      icon="autorenew"
+                      label="Change link"
+                      onPress={handleGenerateLink}
+                      busy={linkBusy}
+                    />
+                    <LinkRow
+                      icon="link-off"
+                      label="Disable link"
+                      onPress={handleDisableLink}
+                      busy={linkBusy}
+                      destructive
+                    />
+                  </>
+                ) : null}
               </View>
-            ) : (
+            ) : isAdmin ? (
               <View className="mt-2">
                 <Button
                   label="Generate link"
@@ -196,6 +200,10 @@ export function InvitesScreen() {
                   loading={linkBusy}
                 />
               </View>
+            ) : (
+              <Text className="mt-2 text-sm text-subtle">
+                Only group admins can create an invite link
+              </Text>
             )}
 
             <Text className="mb-2 mt-6 text-xs font-medium uppercase text-subtle">
@@ -231,9 +239,11 @@ export function InvitesScreen() {
               </Text>
               <Text className="text-xs text-subtle">Invited by {item.invitedByName}</Text>
             </View>
-            <Pressable onPress={() => handleRevoke(item.id)}>
-              <Text className="text-sm text-red-400">Revoke</Text>
-            </Pressable>
+            {isAdmin ? (
+              <Pressable onPress={() => handleRevoke(item.id)}>
+                <Text className="text-sm text-red-400">Revoke</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
         ListEmptyComponent={

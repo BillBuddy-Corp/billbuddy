@@ -36,7 +36,7 @@ export type RootStackParamList = {
   AddFriend: undefined;
   AddFriendExpense: { friendUserId: number };
   GroupSettings: { groupId: number };
-  Invites: { groupId: number };
+  Invites: { groupId: number; isAdmin: boolean };
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
   JoinGroup: JoinGroupParams;

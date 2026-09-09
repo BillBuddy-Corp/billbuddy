@@ -8,19 +8,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getGroup, getGroupBalances, Group, GroupMember, listMembers } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { avatarColor } from '../utils/avatarColor';
+import { memberBalanceLabel } from '../utils/balance';
 import { getErrorMessage } from '../utils/errors';
 
 type Route = RouteProp<RootStackParamList, 'GroupSettings'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'GroupSettings'>;
-
-function memberBalanceLabel(netBalance: number, currency: string): { label: string; className: string } {
-  if (Math.abs(netBalance) < 0.01) {
-    return { label: 'settled up', className: 'text-subtle' };
-  }
-  return netBalance > 0
-    ? { label: `gets back ${netBalance.toFixed(2)} ${currency}`, className: 'text-green-500' }
-    : { label: `owes ${Math.abs(netBalance).toFixed(2)} ${currency}`, className: 'text-red-400' };
-}
 
 export function GroupSettingsScreen() {
   const navigation = useNavigation<Navigation>();
@@ -97,7 +89,7 @@ export function GroupSettingsScreen() {
       </View>
 
       <Pressable
-        onPress={() => navigation.navigate('Invites', { groupId })}
+        onPress={() => navigation.navigate('Invites', { groupId, isAdmin: group.currentUserRole === 'ADMIN' })}
         className="flex-row items-center border-b border-divider px-5 py-4"
       >
         <MaterialCommunityIcons name="account-plus-outline" size={20} color="#F5F5F7" />
@@ -105,7 +97,7 @@ export function GroupSettingsScreen() {
         <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
       </Pressable>
       <Pressable
-        onPress={() => navigation.navigate('Invites', { groupId })}
+        onPress={() => navigation.navigate('Invites', { groupId, isAdmin: group.currentUserRole === 'ADMIN' })}
         className="flex-row items-center border-b border-divider px-5 py-4"
       >
         <MaterialCommunityIcons name="link-variant" size={20} color="#F5F5F7" />
