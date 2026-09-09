@@ -32,7 +32,7 @@ export function VerifyEmailScreen() {
   const [resent, setResent] = useState(false);
 
   const goHome = () =>
-    navigation.reset({ index: 0, routes: [{ name: hasSession ? 'Home' : 'Login' }] });
+    navigation.reset({ index: 0, routes: [{ name: hasSession ? 'MainTabs' : 'Login' }] });
 
   const runVerification = async (token: string, { navigateOnSuccess } = { navigateOnSuccess: false }) => {
     setStatus('pending');

@@ -1,27 +1,31 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
+import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
-import { HomeScreen } from '../screens/HomeScreen';
+import { GroupDetailScreen } from '../screens/GroupDetailScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordParams, ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { VerifyEmailParams, VerifyEmailScreen } from '../screens/VerifyEmailScreen';
 import { useAuthStore } from '../store/authStore';
+import { MainTabs } from './MainTabs';
 
-// One navigator, not two swapped by a ternary. Login/Signup/ForgotPassword
-// and Home are mutually exclusive (conditionally included based on session),
-// while ResetPassword and VerifyEmail are always present — either flow can
-// be reached whether or not the user currently has a session. Registering
-// the same route name in two separate top-level navigators (the earlier
-// approach) confused React Navigation's `linking` path resolution after a
-// login/logout swap; this is the pattern React Navigation's own docs
-// recommend for authentication flows specifically to avoid that.
+// One navigator, not several swapped by a ternary — see the comment history
+// in git blame for why: registering the same route name in two separate
+// top-level navigators confused React Navigation's `linking` path
+// resolution after a login/logout swap. MainTabs (the bottom-tab shell) is
+// nested here as a single screen, with GroupDetail/CreateGroup as ordinary
+// sibling screens in this same stack, pushed on top of the tabs — the
+// standard "stack wraps tabs" pattern for screens that shouldn't show the
+// tab bar (a detail view, a modal-like create form).
 export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
-  Home: undefined;
+  MainTabs: undefined;
+  GroupDetail: { groupId: number };
+  CreateGroup: undefined;
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
 };
@@ -43,7 +47,19 @@ export function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {hasSession ? (
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen
+            name="GroupDetail"
+            component={GroupDetailScreen}
+            options={{ headerShown: true, title: '' }}
+          />
+          <Stack.Screen
+            name="CreateGroup"
+            component={CreateGroupScreen}
+            options={{ headerShown: true, title: 'New group', presentation: 'modal' }}
+          />
+        </>
       ) : (
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
