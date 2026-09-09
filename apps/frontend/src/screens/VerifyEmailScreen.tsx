@@ -4,11 +4,11 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { resendVerificationEmail, verifyEmail } from '../api/auth';
-import { getProfile } from '../api/users';
 import { Button } from '../components/atoms/Button';
 import { Logo } from '../components/atoms/Logo';
 import { TextField } from '../components/atoms/TextField';
 import { useAuthStore } from '../store/authStore';
+import { extractToken } from '../utils/extractToken';
 import { getErrorMessage } from '../utils/errors';
 
 export type VerifyEmailParams = { token?: string };
@@ -22,29 +22,42 @@ export function VerifyEmailScreen() {
   const [status, setStatus] = useState<'awaitingToken' | 'pending' | 'success' | 'error'>(
     route.params?.token ? 'pending' : 'awaitingToken'
   );
-  const [message, setMessage] = useState('');
-  const [tokenInput, setTokenInput] = useState('');
+  const [error, setError] = useState('');
+  const [linkInput, setLinkInput] = useState('');
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
-  const runVerification = async (token: string) => {
+  const goHome = () => navigation.navigate(hasSession ? 'Home' : 'Login');
+
+  const runVerification = async (token: string, { navigateOnSuccess } = { navigateOnSuccess: false }) => {
     setStatus('pending');
+    setError('');
     try {
-      const response = await verifyEmail({ token });
-      setMessage(response.message);
-      setStatus('success');
+      await verifyEmail({ token });
       if (hasSession) {
-        try {
-          const profile = await getProfile();
-          await setEmailVerified(profile.emailVerified);
-        } catch {
-          // Non-critical: the banner just won't update immediately.
-        }
+        await setEmailVerified(true);
       }
+      if (navigateOnSuccess) {
+        goHome();
+        return;
+      }
+      setStatus('success');
     } catch (err) {
-      setStatus('error');
-      setMessage(getErrorMessage(err));
+      setError(getErrorMessage(err));
+      // The manual-entry path stays on the input screen so the user can
+      // fix a typo and retry; the deep-link path shows a dedicated
+      // error state since there's no input to correct.
+      setStatus(navigateOnSuccess ? 'awaitingToken' : 'error');
     }
+  };
+
+  const handleContinue = () => {
+    const token = extractToken(linkInput);
+    if (!token) {
+      setError('Paste the verification link or token from your email');
+      return;
+    }
+    runVerification(token, { navigateOnSuccess: true });
   };
 
   const handleResend = async () => {
@@ -68,54 +81,59 @@ export function VerifyEmailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showResend = hasSession && (status === 'awaitingToken' || status === 'error');
-
   return (
     <SafeAreaView className="flex-1 items-center justify-center bg-white px-6">
       <Logo />
       <Text className="mt-4 text-lg font-medium text-black">Verify your email</Text>
+      <Text className="mt-1 text-center text-sm text-gray-500">
+        We sent a verification link to your email. Paste it below, or the token from it.
+      </Text>
 
       {status === 'pending' ? <ActivityIndicator className="mt-6" color="#2F6FED" /> : null}
 
       {status === 'awaitingToken' ? (
         <View className="mt-6 w-full max-w-xs">
           <TextField
-            label="Verification token"
-            placeholder="Paste the token from your email"
-            value={tokenInput}
-            onChangeText={setTokenInput}
+            label="Verification link or token"
+            placeholder="Paste it here"
+            value={linkInput}
+            onChangeText={setLinkInput}
+            autoCapitalize="none"
           />
-          <Button
-            label="Verify"
-            onPress={() => tokenInput.trim() && runVerification(tokenInput.trim())}
-          />
+          {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+          <Button label="Continue" onPress={handleContinue} />
+
+          {hasSession ? (
+            <View className="mt-4 items-center">
+              {resending ? (
+                <ActivityIndicator color="#2F6FED" />
+              ) : (
+                <Pressable onPress={handleResend} disabled={resent}>
+                  <Text className="text-sm text-primary">
+                    {resent ? 'Verification email sent' : "Didn't get the email? Resend"}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          ) : null}
+
+          {hasSession ? (
+            <Pressable onPress={goHome} className="mt-6 items-center">
+              <Text className="text-sm text-gray-400">Skip for now</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
       {status === 'success' || status === 'error' ? (
         <>
-          <Text className="mt-3 text-center text-sm text-gray-500">{message}</Text>
+          <Text className="mt-3 text-center text-sm text-gray-500">
+            {status === 'success' ? 'Email verified successfully.' : error}
+          </Text>
           <View className="mt-6 w-full max-w-xs">
-            <Button
-              label="Continue"
-              onPress={() => navigation.navigate(hasSession ? 'Home' : 'Login')}
-            />
+            <Button label="Continue" onPress={goHome} />
           </View>
         </>
-      ) : null}
-
-      {showResend ? (
-        <View className="mt-4 items-center">
-          {resending ? (
-            <ActivityIndicator color="#2F6FED" />
-          ) : (
-            <Pressable onPress={handleResend} disabled={resent}>
-              <Text className="text-sm text-primary">
-                {resent ? 'Verification email sent' : "Didn't get the email? Resend"}
-              </Text>
-            </Pressable>
-          )}
-        </View>
       ) : null}
     </SafeAreaView>
   );

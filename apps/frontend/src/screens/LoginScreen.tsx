@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { login } from '../api/auth';
-import { getProfile } from '../api/users';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { AuthCard } from '../components/molecules/AuthCard';
@@ -18,7 +17,6 @@ type Navigation = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 export function LoginScreen() {
   const navigation = useNavigation<Navigation>();
   const setSession = useAuthStore((state) => state.setSession);
-  const setEmailVerified = useAuthStore((state) => state.setEmailVerified);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,13 +42,6 @@ export function LoginScreen() {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
       });
-      try {
-        const profile = await getProfile();
-        await setEmailVerified(profile.emailVerified);
-      } catch {
-        // Non-critical: the email-verified banner just won't be accurate
-        // until the next profile fetch.
-      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

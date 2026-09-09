@@ -1,6 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
+import { getProfile } from '../api/users';
+import { setAccessToken } from '../api/tokenHolder';
+
 const ACCESS_TOKEN_KEY = 'billbuddy.accessToken';
 const REFRESH_TOKEN_KEY = 'billbuddy.refreshToken';
 const USER_KEY = 'billbuddy.user';
@@ -40,7 +43,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isHydrated: false,
 
   setSession: async ({ user, accessToken, refreshToken }) => {
-    const fullUser: AuthUser = { ...user, emailVerified: false };
+    // Set the token first so an authenticated request (the profile fetch
+    // below) can actually go out before the store's own state updates.
+    setAccessToken(accessToken);
+
+    let emailVerified = false;
+    try {
+      const profile = await getProfile();
+      emailVerified = profile.emailVerified;
+    } catch {
+      // Non-critical: falls back to "unverified", matching the safer
+      // default — a screen relying on this can always re-check later.
+    }
+
+    const fullUser: AuthUser = { ...user, emailVerified };
     await Promise.all([
       SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
       SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
@@ -60,6 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearSession: async () => {
+    setAccessToken(null);
     await Promise.all([
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
       SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
@@ -74,6 +91,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
       SecureStore.getItemAsync(USER_KEY),
     ]);
+    setAccessToken(accessToken);
     const user = userJson ? (JSON.parse(userJson) as AuthUser) : null;
     set({
       user,
