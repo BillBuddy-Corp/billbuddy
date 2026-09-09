@@ -61,6 +61,7 @@ public class UserService {
                 user.getId(),
                 user.getFullName(),
                 user.getEmail(),
+                user.getEmailVerifiedAt() != null,
                 user.getPendingEmail(),
                 user.getMobileNumber(),
                 user.getMobileVerifiedAt() != null,
