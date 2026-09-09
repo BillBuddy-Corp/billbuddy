@@ -7,6 +7,8 @@ import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
+import { InvitesScreen } from '../screens/InvitesScreen';
+import { JoinGroupParams, JoinGroupScreen } from '../screens/JoinGroupScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordParams, ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { SignupScreen } from '../screens/SignupScreen';
@@ -23,8 +25,8 @@ import { MainTabs } from './MainTabs';
 // standard "stack wraps tabs" pattern for screens that shouldn't show the
 // tab bar (a detail view, a modal-like create form).
 export type RootStackParamList = {
-  Login: undefined;
-  Signup: undefined;
+  Login: { token?: string };
+  Signup: { token?: string };
   ForgotPassword: undefined;
   MainTabs: undefined;
   GroupDetail: { groupId: number };
@@ -32,8 +34,10 @@ export type RootStackParamList = {
   FriendDetail: { friendUserId: number };
   AddFriend: undefined;
   AddFriendExpense: { friendUserId: number };
+  Invites: { groupId: number };
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
+  JoinGroup: JoinGroupParams;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -80,6 +84,11 @@ export function RootNavigator() {
             component={AddFriendExpenseScreen}
             options={{ headerShown: true, title: 'Add expense', presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="Invites"
+            component={InvitesScreen}
+            options={{ headerShown: true, title: 'Invite people' }}
+          />
         </>
       ) : (
         <>
@@ -90,6 +99,7 @@ export function RootNavigator() {
       )}
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+      <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
     </Stack.Navigator>
   );
 }

@@ -15,6 +15,7 @@ const linking: LinkingOptions<Record<string, unknown>> = {
     screens: {
       ResetPassword: 'reset-password',
       VerifyEmail: 'verify-email',
+      JoinGroup: 'join-group',
     },
   },
 };
