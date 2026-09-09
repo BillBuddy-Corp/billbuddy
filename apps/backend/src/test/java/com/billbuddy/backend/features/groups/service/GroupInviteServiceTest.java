@@ -81,12 +81,12 @@ class GroupInviteServiceTest {
     // ===================== CREATE EMAIL INVITE =====================
 
     @Test
-    void createEmailInvite_sendsEmailAndPersistsHashedToken_whenAdmin() {
+    void createEmailInvite_sendsEmailAndPersistsHashedToken_whenActiveMember() {
         User admin = buildUser(1L, "admin@example.com");
         Group group = buildGroup(10L, admin);
         GroupMember adminMembership = GroupMember.createAdmin(group, admin);
 
-        when(groupAccessService.requireAdmin(10L, 1L)).thenReturn(adminMembership);
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(adminMembership);
         when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
         when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.empty());
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
@@ -112,7 +112,7 @@ class GroupInviteServiceTest {
         Group group = buildGroup(10L, admin);
         GroupMember adminMembership = GroupMember.createAdmin(group, admin);
 
-        when(groupAccessService.requireAdmin(10L, 1L)).thenReturn(adminMembership);
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(adminMembership);
         when(groupRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(group));
         when(userRepository.findByEmail("friend@example.com")).thenReturn(Optional.of(existingMember));
         when(groupMemberRepository.findByGroup_IdAndUser_IdAndLeftAtIsNull(10L, 2L))
@@ -138,7 +138,7 @@ class GroupInviteServiceTest {
         );
         GroupInvite linkInvite = GroupInvite.createLinkInvite(group, "raw-link-token", admin);
 
-        when(groupAccessService.requireAdmin(10L, 1L)).thenReturn(adminMembership);
+        when(groupAccessService.requireActiveMember(10L, 1L)).thenReturn(adminMembership);
         when(groupInviteRepository.findByGroup_IdAndRevokedFalse(10L))
                 .thenReturn(List.of(emailInvite, linkInvite));
 

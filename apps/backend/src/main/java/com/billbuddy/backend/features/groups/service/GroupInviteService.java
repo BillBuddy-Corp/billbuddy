@@ -61,7 +61,7 @@ public class GroupInviteService {
 
     @Transactional
     public void createEmailInvite(Long groupId, Long requesterId, String rawEmail) {
-        groupAccessService.requireAdmin(groupId, requesterId);
+        groupAccessService.requireActiveMember(groupId, requesterId);
         Group group = groupRepository.findByIdAndDeletedAtIsNull(groupId)
                 .orElseThrow(() -> new GroupNotFoundException("Group not found"));
 
@@ -91,7 +91,7 @@ public class GroupInviteService {
 
     @Transactional
     public List<GroupInviteResponse> listInvites(Long groupId, Long requesterId) {
-        groupAccessService.requireAdmin(groupId, requesterId);
+        groupAccessService.requireActiveMember(groupId, requesterId);
         return groupInviteRepository.findByGroup_IdAndRevokedFalse(groupId).stream()
                 .map(this::toResponse)
                 .toList();
