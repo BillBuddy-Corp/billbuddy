@@ -14,15 +14,6 @@ export type FriendBalance = {
   amount: number;
 };
 
-export type CreateFriendExpenseRequest = {
-  description: string;
-  amount: number;
-  currency: string;
-  // must be either the caller's or the friend's own userId -- these are the only two valid
-  // participants for a non-group expense
-  paidByUserId: number;
-};
-
 export async function addFriend(email: string): Promise<Friend> {
   const { data } = await apiClient.post<Friend>('/friends', { email });
   return data;
@@ -67,22 +58,4 @@ export function nonGroupBalanceFromExpenses(expenses: Expense[], currentUserId: 
     }
   }
   return Array.from(byCurrency, ([currency, amount]) => ({ currency, amount }));
-}
-
-// Always an equal split between the caller and the friend -- the only split type this slice's
-// UI supports; the backend itself handles PERCENTAGE/EXACT/ITEMIZED too, for future UI.
-export async function createFriendExpense(
-  friendUserId: number,
-  currentUserId: number,
-  request: CreateFriendExpenseRequest
-): Promise<Expense> {
-  const { data } = await apiClient.post<Expense>(`/friends/${friendUserId}/expenses`, {
-    description: request.description,
-    amount: request.amount,
-    currency: request.currency,
-    splitType: 'EQUAL',
-    payers: [{ userId: request.paidByUserId, amountPaid: request.amount }],
-    participantUserIds: [currentUserId, friendUserId],
-  });
-  return data;
 }

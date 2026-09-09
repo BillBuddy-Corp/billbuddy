@@ -1,9 +1,9 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
+import { AddExpenseScreen } from '../screens/AddExpenseScreen';
 import { AddFriendScreen } from '../screens/AddFriendScreen';
-import { AddFriendExpenseScreen } from '../screens/AddFriendExpenseScreen';
-import { AddGroupExpenseScreen } from '../screens/AddGroupExpenseScreen';
+import { AdjustSplitScreen } from '../screens/AdjustSplitScreen';
 import { BalancesScreen } from '../screens/BalancesScreen';
 import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
@@ -17,6 +17,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordParams, ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { VerifyEmailParams, VerifyEmailScreen } from '../screens/VerifyEmailScreen';
+import { WhoPaidScreen } from '../screens/WhoPaidScreen';
 import { useAuthStore } from '../store/authStore';
 import { MainTabs } from './MainTabs';
 
@@ -37,10 +38,11 @@ export type RootStackParamList = {
   CreateGroup: undefined;
   FriendDetail: { friendUserId: number };
   AddFriend: undefined;
-  AddFriendExpense: { friendUserId: number };
   GroupSettings: { groupId: number };
   Invites: { groupId: number; isAdmin: boolean };
-  AddGroupExpense: { groupId: number };
+  AddExpense: { groupId: number } | { friendUserId: number };
+  WhoPaid: undefined;
+  AdjustSplit: undefined;
   SettleUp: { groupId: number };
   Balances: { groupId: number };
   ResetPassword: ResetPasswordParams;
@@ -94,11 +96,6 @@ export function RootNavigator() {
             options={{ headerShown: true, title: 'Add friend', presentation: 'modal' }}
           />
           <Stack.Screen
-            name="AddFriendExpense"
-            component={AddFriendExpenseScreen}
-            options={{ headerShown: true, title: 'Add expense', presentation: 'modal' }}
-          />
-          <Stack.Screen
             name="GroupSettings"
             component={GroupSettingsScreen}
             options={{ ...darkHeaderOptions, title: 'Group settings' }}
@@ -109,9 +106,19 @@ export function RootNavigator() {
             options={{ ...darkHeaderOptions, title: 'Invite people' }}
           />
           <Stack.Screen
-            name="AddGroupExpense"
-            component={AddGroupExpenseScreen}
+            name="AddExpense"
+            component={AddExpenseScreen}
             options={{ ...darkHeaderOptions, title: 'Add expense', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="WhoPaid"
+            component={WhoPaidScreen}
+            options={{ ...darkHeaderOptions, title: 'Who paid?' }}
+          />
+          <Stack.Screen
+            name="AdjustSplit"
+            component={AdjustSplitScreen}
+            options={{ ...darkHeaderOptions, title: 'Adjust split' }}
           />
           <Stack.Screen
             name="SettleUp"

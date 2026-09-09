@@ -96,7 +96,7 @@ export function FriendDetailScreen() {
         <Text className="mt-1 text-sm text-gray-500">{friend.email}</Text>
         <Text className={`mt-3 text-sm font-medium ${summary.className}`}>{summary.label}</Text>
         <Pressable
-          onPress={() => navigation.navigate('AddFriendExpense', { friendUserId })}
+          onPress={() => navigation.navigate('AddExpense', { friendUserId })}
           className="mt-3 self-start rounded-lg bg-primary px-4 py-2"
         >
           <Text className="text-sm font-medium text-white">Add expense</Text>

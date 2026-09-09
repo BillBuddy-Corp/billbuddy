@@ -195,7 +195,7 @@ export function GroupDetailScreen() {
       />
 
       <Pressable
-        onPress={() => navigation.navigate('AddGroupExpense', { groupId })}
+        onPress={() => navigation.navigate('AddExpense', { groupId })}
         className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
       >
         <MaterialCommunityIcons name="plus" size={28} color="white" />

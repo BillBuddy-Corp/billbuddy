@@ -30,33 +30,37 @@ export type Expense = {
   updatedAt: string;
 };
 
-export type CreateGroupExpenseRequest = {
+export type ExpenseTarget = { groupId: number } | { friendUserId: number };
+
+export type CreateExpenseRequest = {
   description: string;
   amount: number;
   currency: string;
+  category?: string;
   paidByUserId: number;
-  participantUserIds: number[];
-};
+} & (
+  | { splitType: 'EQUAL'; participantUserIds: number[] }
+  | { splitType: 'EXACT'; exactAmounts: { userId: number; amount: number }[] }
+  | { splitType: 'PERCENTAGE'; percentages: { userId: number; percentage: number }[] }
+);
 
 export async function listGroupExpenses(groupId: number): Promise<Expense[]> {
   const { data } = await apiClient.get<Expense[]>(`/groups/${groupId}/expenses`);
   return data;
 }
 
-// Always an equal split among participantUserIds -- the only split type
-// this slice's UI supports; the backend also handles PERCENTAGE/EXACT/
-// ITEMIZED for the redesigned add-expense flow in a later slice.
-export async function createGroupExpense(
-  groupId: number,
-  request: CreateGroupExpenseRequest
-): Promise<Expense> {
-  const { data } = await apiClient.post<Expense>(`/groups/${groupId}/expenses`, {
-    description: request.description,
-    amount: request.amount,
-    currency: request.currency,
-    splitType: 'EQUAL',
-    payers: [{ userId: request.paidByUserId, amountPaid: request.amount }],
-    participantUserIds: request.participantUserIds,
+// Single payer only -- the "multiple people paid" flow is a later slice
+// (WhoPaidScreen shows it as a stubbed, disabled option for now).
+export async function createExpense(target: ExpenseTarget, request: CreateExpenseRequest): Promise<Expense> {
+  const url = 'groupId' in target ? `/groups/${target.groupId}/expenses` : `/friends/${target.friendUserId}/expenses`;
+  const { description, amount, currency, category, paidByUserId, ...split } = request;
+  const { data } = await apiClient.post<Expense>(url, {
+    description,
+    amount,
+    currency,
+    category,
+    payers: [{ userId: paidByUserId, amountPaid: amount }],
+    ...split,
   });
   return data;
 }
