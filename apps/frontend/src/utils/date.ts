@@ -18,3 +18,22 @@ export function formatDateHeader(iso: string): string {
     year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
   });
 }
+
+export type DateSection<T> = { title: string; data: T[] };
+
+// Groups a list already sorted newest-first into SectionList sections keyed
+// by formatDateHeader -- consecutive items sharing a header stay in one
+// section, matching the input order rather than re-sorting.
+export function groupByDate<T>(items: T[], getCreatedAt: (item: T) => string): DateSection<T>[] {
+  const sections: DateSection<T>[] = [];
+  for (const item of items) {
+    const title = formatDateHeader(getCreatedAt(item));
+    const last = sections[sections.length - 1];
+    if (last && last.title === title) {
+      last.data.push(item);
+    } else {
+      sections.push({ title, data: [item] });
+    }
+  }
+  return sections;
+}

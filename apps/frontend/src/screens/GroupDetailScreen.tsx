@@ -10,38 +10,13 @@ import { getGroup, getGroupBalances, Group } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { avatarColor } from '../utils/avatarColor';
-import { formatDateHeader } from '../utils/date';
+import { groupByDate } from '../utils/date';
 import { getErrorMessage } from '../utils/errors';
 import { categoryStyle } from '../utils/expenseCategory';
+import { myImpact } from '../utils/expenseImpact';
 
 type Route = RouteProp<RootStackParamList, 'GroupDetail'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'GroupDetail'>;
-
-type Section = { title: string; data: Expense[] };
-
-function groupByDate(expenses: Expense[]): Section[] {
-  const sections: Section[] = [];
-  for (const expense of expenses) {
-    const title = formatDateHeader(expense.createdAt);
-    const last = sections[sections.length - 1];
-    if (last && last.title === title) {
-      last.data.push(expense);
-    } else {
-      sections.push({ title, data: [expense] });
-    }
-  }
-  return sections;
-}
-
-function myImpact(expense: Expense, currentUserId: number): { label: string; className: string } | null {
-  const paid = expense.payers.find((p) => p.userId === currentUserId)?.amountPaid ?? 0;
-  const owed = expense.splits.find((s) => s.userId === currentUserId)?.amountOwed ?? 0;
-  const net = paid - owed;
-  if (Math.abs(net) < 0.01) return null;
-  return net > 0
-    ? { label: `you lent ${net.toFixed(2)}`, className: 'text-green-500' }
-    : { label: `you borrowed ${Math.abs(net).toFixed(2)}`, className: 'text-red-400' };
-}
 
 export function GroupDetailScreen() {
   const navigation = useNavigation<Navigation>();
@@ -153,7 +128,7 @@ export function GroupDetailScreen() {
       </View>
 
       <SectionList
-        sections={groupByDate(expenses)}
+        sections={groupByDate(expenses, (e) => e.createdAt)}
         keyExtractor={(item) => String(item.id)}
         renderSectionHeader={({ section }) => (
           <Text className="bg-background px-5 pb-2 pt-3 text-xs font-medium uppercase text-subtle">
