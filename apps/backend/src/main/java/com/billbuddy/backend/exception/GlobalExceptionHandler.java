@@ -382,4 +382,44 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(FriendNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleFriendNotFound(FriendNotFoundException ex) {
+        return Map.of(
+                "error", "FRIEND_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(AlreadyFriendsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> handleAlreadyFriends(AlreadyFriendsException ex) {
+        return Map.of(
+                "error", "ALREADY_FRIENDS",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(FriendshipNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleFriendshipNotFound(FriendshipNotFoundException ex) {
+        return Map.of(
+                "error", "FRIENDSHIP_NOT_FOUND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidFriendException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleInvalidFriend(InvalidFriendException ex) {
+        return Map.of(
+                "error", "INVALID_FRIEND",
+                "message", ex.getMessage(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
 }

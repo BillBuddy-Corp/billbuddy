@@ -1,6 +1,7 @@
 package com.billbuddy.backend.features.expenses.service;
 
 import com.billbuddy.backend.exception.ExpenseNotFoundException;
+import com.billbuddy.backend.exception.FriendshipNotFoundException;
 import com.billbuddy.backend.exception.GroupNotFoundException;
 import com.billbuddy.backend.exception.InvalidCurrencyException;
 import com.billbuddy.backend.exception.InvalidExpenseParticipantException;
@@ -8,6 +9,7 @@ import com.billbuddy.backend.exception.InvalidSplitException;
 import com.billbuddy.backend.exception.NotExpenseOwnerException;
 import com.billbuddy.backend.features.auth.model.User;
 import com.billbuddy.backend.features.auth.repository.UserRepository;
+import com.billbuddy.backend.features.friends.service.FriendshipService;
 import com.billbuddy.backend.features.expenses.dto.request.CreateExpenseRequest;
 import com.billbuddy.backend.features.expenses.dto.request.ExpenseItemEntry;
 import com.billbuddy.backend.features.expenses.dto.request.ItemAssignmentEntry;
@@ -85,6 +87,9 @@ class ExpenseServiceTest {
 
     @Mock
     private NotificationService notificationService;
+
+    @Mock
+    private FriendshipService friendshipService;
 
     @InjectMocks
     private ExpenseService expenseService;
@@ -633,5 +638,120 @@ class ExpenseServiceTest {
 
         assertThatThrownBy(() -> expenseService.suggestExchangeRate(10L, 1L, "THB"))
                 .isInstanceOf(GroupNotFoundException.class);
+    }
+
+    // ===================== FRIEND (NON-GROUP) EXPENSES =====================
+
+    @Test
+    void createFriendExpense_savesEqualSplit_whenValid() {
+        User user = buildUser(1L);
+        User friend = buildUser(2L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
+        when(userRepository.findAllById(any())).thenReturn(List.of(user, friend));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(inv -> {
+            Expense e = inv.getArgument(0);
+            ReflectionTestUtils.setField(e, "id", 200L);
+            return e;
+        });
+
+        CreateExpenseRequest request = new CreateExpenseRequest();
+        request.setDescription("Coffee");
+        request.setAmount(new BigDecimal("20"));
+        request.setCurrency("INR");
+        request.setSplitType(SplitType.EQUAL);
+        PayerEntry payer = new PayerEntry();
+        payer.setUserId(1L);
+        payer.setAmountPaid(new BigDecimal("20"));
+        request.setPayers(List.of(payer));
+        request.setParticipantUserIds(List.of(1L, 2L));
+
+        ExpenseResponse response = expenseService.createFriendExpense(1L, 2L, request);
+
+        assertThat(response.getGroupId()).isNull();
+        verify(friendshipService).requireFriends(1L, 2L);
+
+        ArgumentCaptor<List<com.billbuddy.backend.features.expenses.model.ExpenseSplit>> splitsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(expenseSplitRepository).saveAll(splitsCaptor.capture());
+        BigDecimal sum = splitsCaptor.getValue().stream()
+                .map(com.billbuddy.backend.features.expenses.model.ExpenseSplit::getAmountOwed)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(sum).isEqualByComparingTo("20.00");
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void createFriendExpense_throwsFriendshipNotFound_whenNotFriends() {
+        doThrow(new FriendshipNotFoundException("You are not friends with this user"))
+                .when(friendshipService).requireFriends(1L, 2L);
+
+        CreateExpenseRequest request = new CreateExpenseRequest();
+        request.setDescription("Coffee");
+        request.setAmount(new BigDecimal("20"));
+        request.setCurrency("INR");
+        request.setSplitType(SplitType.EQUAL);
+        PayerEntry payer = new PayerEntry();
+        payer.setUserId(1L);
+        payer.setAmountPaid(new BigDecimal("20"));
+        request.setPayers(List.of(payer));
+        request.setParticipantUserIds(List.of(1L, 2L));
+
+        assertThatThrownBy(() -> expenseService.createFriendExpense(1L, 2L, request))
+                .isInstanceOf(FriendshipNotFoundException.class);
+
+        verify(expenseRepository, never()).save(any());
+    }
+
+    @Test
+    void createFriendExpense_throwsInvalidExpenseParticipant_whenThirdPartyReferenced() {
+        User user = buildUser(1L);
+        User friend = buildUser(2L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(inv -> {
+            Expense e = inv.getArgument(0);
+            ReflectionTestUtils.setField(e, "id", 200L);
+            return e;
+        });
+
+        CreateExpenseRequest request = new CreateExpenseRequest();
+        request.setDescription("Coffee");
+        request.setAmount(new BigDecimal("30"));
+        request.setCurrency("INR");
+        request.setSplitType(SplitType.EQUAL);
+        PayerEntry payer = new PayerEntry();
+        payer.setUserId(1L);
+        payer.setAmountPaid(new BigDecimal("30"));
+        request.setPayers(List.of(payer));
+        // 3L isn't a friend, only 1L and 2L are valid participants for a friend expense
+        request.setParticipantUserIds(List.of(1L, 2L, 3L));
+
+        assertThatThrownBy(() -> expenseService.createFriendExpense(1L, 2L, request))
+                .isInstanceOf(InvalidExpenseParticipantException.class);
+    }
+
+    @Test
+    void listFriendExpenses_returnsExpensesBetweenThePair() {
+        User user = buildUser(1L);
+        User friend = buildUser(2L);
+        Expense expense = Expense.createFriendExpense(
+                user, friend, user, "Coffee", new BigDecimal("20.00"), "INR",
+                new BigDecimal("20.00"), BigDecimal.ONE, null, null, SplitType.EQUAL
+        );
+        ReflectionTestUtils.setField(expense, "id", 200L);
+
+        when(expenseRepository
+                .findByGroupIsNullAndFriendUserLowIdAndFriendUserHighIdAndDeletedAtIsNullOrderByCreatedAtDesc(1L, 2L))
+                .thenReturn(List.of(expense));
+        when(expensePayerRepository.findByExpense_Id(200L)).thenReturn(List.of());
+        when(expenseSplitRepository.findByExpense_Id(200L)).thenReturn(List.of());
+
+        List<ExpenseResponse> result = expenseService.listFriendExpenses(1L, 2L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getGroupId()).isNull();
+        verify(friendshipService).requireFriends(1L, 2L);
     }
 }

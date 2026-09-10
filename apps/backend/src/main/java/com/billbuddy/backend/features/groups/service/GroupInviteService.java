@@ -11,6 +11,7 @@ import com.billbuddy.backend.features.auth.repository.UserRepository;
 import com.billbuddy.backend.features.auth.util.TokenHashUtil;
 import com.billbuddy.backend.features.groups.dto.response.GroupInviteResponse;
 import com.billbuddy.backend.features.groups.dto.response.JoinInviteResponse;
+import com.billbuddy.backend.features.groups.dto.response.MyInviteResponse;
 import com.billbuddy.backend.features.groups.model.Group;
 import com.billbuddy.backend.features.groups.model.GroupInvite;
 import com.billbuddy.backend.features.groups.model.GroupInviteType;
@@ -136,16 +137,71 @@ public class GroupInviteService {
 
         validateInviteIsUsable(invite);
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        return completeJoin(user, invite);
+    }
+
+    // "My invites": EMAIL invites addressed to the caller's own account email, so they can be
+    // listed and accepted in-app without the raw token -- that token only ever existed in the
+    // invite email itself, since the DB only keeps a hash of it (see GroupInvite.token).
+    @Transactional
+    public List<MyInviteResponse> listMyInvites(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        return groupInviteRepository
+                .findByEmailAndTypeAndRevokedFalseAndAcceptedAtIsNull(user.getEmail(), GroupInviteType.EMAIL)
+                .stream()
+                .filter(invite -> !invite.isExpired())
+                .filter(invite -> !invite.getGroup().isDeleted())
+                .map(invite -> new MyInviteResponse(
+                        invite.getId(),
+                        invite.getGroup().getId(),
+                        invite.getGroup().getName(),
+                        invite.getInvitedBy().getFullName(),
+                        invite.getCreatedAt()
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public JoinInviteResponse acceptMyInvite(Long userId, Long inviteId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        GroupInvite invite = findMyInvite(inviteId, user);
+
+        validateInviteIsUsable(invite);
+
+        return completeJoin(user, invite);
+    }
+
+    @Transactional
+    public void declineMyInvite(Long userId, Long inviteId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        GroupInvite invite = findMyInvite(inviteId, user);
+        invite.revoke();
+    }
+
+    // Scoped to EMAIL invites whose email matches the caller's own account -- this is what
+    // makes it safe to accept/decline by ID alone, with no token needed.
+    private GroupInvite findMyInvite(Long inviteId, User user) {
+        return groupInviteRepository.findById(inviteId)
+                .filter(invite -> invite.getType() == GroupInviteType.EMAIL)
+                .filter(invite -> invite.getEmail() != null && invite.getEmail().equalsIgnoreCase(user.getEmail()))
+                .orElseThrow(() -> new InviteNotFoundException("Invite not found"));
+    }
+
+    private JoinInviteResponse completeJoin(User user, GroupInvite invite) {
         Group group = invite.getGroup();
         if (group.isDeleted()) {
             throw new GroupNotFoundException("Group not found");
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
-
         GroupMember membership = groupMemberRepository
-                .findByGroup_IdAndUser_Id(group.getId(), userId)
+                .findByGroup_IdAndUser_Id(group.getId(), user.getId())
                 .orElse(null);
 
         if (membership != null && membership.isActive()) {

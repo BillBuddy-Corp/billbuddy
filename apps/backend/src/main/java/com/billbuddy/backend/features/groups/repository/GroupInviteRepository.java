@@ -1,6 +1,7 @@
 package com.billbuddy.backend.features.groups.repository;
 
 import com.billbuddy.backend.features.groups.model.GroupInvite;
+import com.billbuddy.backend.features.groups.model.GroupInviteType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,10 @@ public interface  GroupInviteRepository extends JpaRepository<GroupInvite, Long>
     Optional<GroupInvite> findByIdAndGroup_Id(Long id, Long groupId);
 
     List<GroupInvite> findByGroup_IdAndRevokedFalse(Long groupId);
+
+    // Powers "invites addressed to me": EMAIL invites only, since a LINK invite
+    // isn't addressed to any particular account.
+    List<GroupInvite> findByEmailAndTypeAndRevokedFalseAndAcceptedAtIsNull(String email, GroupInviteType type);
 
     @Modifying
     @Query("""
