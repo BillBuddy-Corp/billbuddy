@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { addFriend, listFriends } from '../api/friends';
-import { getGroup, getGroupBalances, Group, GroupMember, listMembers } from '../api/groups';
+import { getGroup, getGroupBalances, Group, GroupMember, listMembers, removeMember } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 import { avatarColor } from '../utils/avatarColor';
@@ -27,6 +27,7 @@ export function GroupSettingsScreen() {
   const [balances, setBalances] = useState<Map<number, number>>(new Map());
   const [friendIds, setFriendIds] = useState<Set<number>>(new Set());
   const [addingFriendId, setAddingFriendId] = useState<number | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -66,6 +67,34 @@ export function GroupSettingsScreen() {
     } finally {
       setAddingFriendId(null);
     }
+  };
+
+  const handleRemoveMember = (member: GroupMember) => {
+    const isSettled = Math.abs(balances.get(member.userId) ?? 0) < 0.01;
+    Alert.alert(
+      'Remove from group?',
+      isSettled
+        ? `${member.fullName} will be removed from ${group?.name}. This can't be undone from here, but you can add them back later.`
+        : `${member.fullName} still has an unsettled balance in this group. Removing them won't settle it.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setRemovingMemberId(member.userId);
+            try {
+              await removeMember(groupId, member.userId);
+              await load();
+            } catch (err) {
+              Alert.alert('Could not remove member', getErrorMessage(err));
+            } finally {
+              setRemovingMemberId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -132,6 +161,7 @@ export function GroupSettingsScreen() {
           const summary = memberBalanceLabel(balances.get(item.userId) ?? 0, group.defaultCurrency);
           const isSelf = item.userId === currentUserId;
           const isFriend = friendIds.has(item.userId);
+          const canRemove = !isSelf && group.currentUserRole === 'ADMIN';
           return (
             <View className="flex-row items-center border-b border-divider px-5 py-3">
               <View
@@ -163,6 +193,19 @@ export function GroupSettingsScreen() {
                   </Pressable>
                 ) : null}
               </View>
+              {canRemove ? (
+                <Pressable
+                  onPress={() => handleRemoveMember(item)}
+                  disabled={removingMemberId === item.userId}
+                  className="ml-3 p-1"
+                >
+                  {removingMemberId === item.userId ? (
+                    <ActivityIndicator size="small" color="#F87171" />
+                  ) : (
+                    <MaterialCommunityIcons name="account-remove-outline" size={18} color="#F87171" />
+                  )}
+                </Pressable>
+              ) : null}
             </View>
           );
         }}

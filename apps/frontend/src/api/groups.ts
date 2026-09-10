@@ -49,6 +49,10 @@ export async function listMembers(groupId: number): Promise<GroupMember[]> {
   return data;
 }
 
+export async function removeMember(groupId: number, userId: number): Promise<void> {
+  await apiClient.delete(`/groups/${groupId}/members/${userId}`);
+}
+
 export type GroupBalance = {
   userId: number;
   fullName: string;
