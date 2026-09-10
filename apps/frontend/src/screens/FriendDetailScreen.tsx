@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Expense } from '../api/expenses';
@@ -12,6 +12,7 @@ import {
   getFriendBalance,
   listFriendExpenses,
   listFriends,
+  removeFriend,
 } from '../api/friends';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { getErrorMessage } from '../utils/errors';
@@ -47,6 +48,7 @@ export function FriendDetailScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [removing, setRemoving] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -89,11 +91,47 @@ export function FriendDetailScreen() {
   }
 
   const summary = balanceLine(balances);
+  const isSettled = balances.every((b) => Math.abs(b.amount) < 0.01);
+
+  const handleRemoveFriend = () => {
+    Alert.alert(
+      'Remove friend?',
+      isSettled
+        ? `${friend.fullName} will be removed from your friends list. Your past expenses together are kept, but you'll need to add them again to split future ones.`
+        : `You still have an unsettled balance with ${friend.fullName}. Removing them won't settle it, and they'll disappear from your Friends and Activity tabs until you add them again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setRemoving(true);
+            try {
+              await removeFriend(friendUserId);
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert('Could not remove friend', getErrorMessage(err));
+              setRemoving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="border-b border-divider px-5 py-4">
-        <Text className="text-xl font-medium text-ink">{friend.fullName}</Text>
+        <View className="flex-row items-start justify-between">
+          <Text className="text-xl font-medium text-ink">{friend.fullName}</Text>
+          <Pressable onPress={handleRemoveFriend} disabled={removing} className="p-1">
+            {removing ? (
+              <ActivityIndicator size="small" color="#F87171" />
+            ) : (
+              <MaterialCommunityIcons name="account-remove-outline" size={20} color="#F87171" />
+            )}
+          </Pressable>
+        </View>
         <Text className="mt-1 text-sm text-subtle">{friend.email}</Text>
         <Text className={`mt-3 text-sm font-medium ${summary.className}`}>{summary.label}</Text>
         <Pressable
