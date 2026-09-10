@@ -6,6 +6,7 @@ import { AddFriendScreen } from '../screens/AddFriendScreen';
 import { AdjustSplitScreen } from '../screens/AdjustSplitScreen';
 import { BalancesScreen } from '../screens/BalancesScreen';
 import { CreateGroupScreen } from '../screens/CreateGroupScreen';
+import { EditGroupScreen } from '../screens/EditGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   GroupDetail: { groupId: number };
   CreateGroup: undefined;
+  EditGroup: { groupId: number; name: string; description: string | null; defaultCurrency: string };
   FriendDetail: { friendUserId: number };
   AddFriend: undefined;
   GroupSettings: { groupId: number };
@@ -84,6 +86,11 @@ export function RootNavigator() {
             name="CreateGroup"
             component={CreateGroupScreen}
             options={{ ...darkHeaderOptions, title: 'New group', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="EditGroup"
+            component={EditGroupScreen}
+            options={{ ...darkHeaderOptions, title: 'Edit group', presentation: 'modal' }}
           />
           <Stack.Screen
             name="FriendDetail"

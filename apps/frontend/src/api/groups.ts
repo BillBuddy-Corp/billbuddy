@@ -39,6 +39,17 @@ export async function createGroup(request: CreateGroupRequest): Promise<Group> {
   return data;
 }
 
+export type UpdateGroupRequest = {
+  name: string;
+  description?: string;
+  defaultCurrency: string;
+};
+
+export async function updateGroup(groupId: number, request: UpdateGroupRequest): Promise<Group> {
+  const { data } = await apiClient.put<Group>(`/groups/${groupId}`, request);
+  return data;
+}
+
 export async function getGroup(groupId: number): Promise<Group> {
   const { data } = await apiClient.get<Group>(`/groups/${groupId}`);
   return data;
