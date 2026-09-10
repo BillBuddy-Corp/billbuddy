@@ -22,6 +22,14 @@ export type JoinGroupResponse = {
   message: string;
 };
 
+export type MyInvite = {
+  id: number;
+  groupId: number;
+  groupName: string;
+  invitedByName: string;
+  createdAt: string;
+};
+
 export async function createEmailInvite(groupId: number, email: string): Promise<void> {
   await apiClient.post(`/groups/${groupId}/invites/email`, { email });
 }
@@ -47,4 +55,18 @@ export async function disableLink(groupId: number): Promise<void> {
 export async function joinViaInvite(token: string): Promise<JoinGroupResponse> {
   const { data } = await apiClient.post<JoinGroupResponse>('/invites/join', { token });
   return data;
+}
+
+export async function listMyInvites(): Promise<MyInvite[]> {
+  const { data } = await apiClient.get<MyInvite[]>('/invites/mine');
+  return data;
+}
+
+export async function acceptMyInvite(inviteId: number): Promise<JoinGroupResponse> {
+  const { data } = await apiClient.post<JoinGroupResponse>(`/invites/${inviteId}/accept`);
+  return data;
+}
+
+export async function declineMyInvite(inviteId: number): Promise<void> {
+  await apiClient.post(`/invites/${inviteId}/decline`);
 }

@@ -2,11 +2,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getGroupBalances, Group, listGroups } from '../api/groups';
 import { FriendBalance, listFriendExpenses, listFriends, nonGroupBalanceFromExpenses } from '../api/friends';
+import { acceptMyInvite, declineMyInvite, listMyInvites, MyInvite } from '../api/invites';
 import { balanceLine, GroupListItem } from '../components/molecules/GroupListItem';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
@@ -22,13 +23,20 @@ export function GroupsListScreen() {
 
   const [rows, setRows] = useState<GroupWithBalance[]>([]);
   const [nonGroupBalances, setNonGroupBalances] = useState<FriendBalance[]>([]);
+  const [invites, setInvites] = useState<MyInvite[]>([]);
+  const [actingInviteId, setActingInviteId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     if (!currentUserId) return;
     try {
-      const groups = await listGroups();
+      const [groups] = await Promise.all([
+        listGroups(),
+        listMyInvites()
+          .then(setInvites)
+          .catch(() => setInvites([])),
+      ]);
       const withBalances = await Promise.all(
         groups.map(async (group) => {
           try {
@@ -90,6 +98,32 @@ export function GroupsListScreen() {
   // prop is typed against the root stack, not the tab navigator directly.
   const goToFriends = () => (navigation as never as { navigate: (name: string) => void }).navigate('Friends');
 
+  const handleAcceptInvite = async (invite: MyInvite) => {
+    setActingInviteId(invite.id);
+    try {
+      await acceptMyInvite(invite.id);
+      setInvites((prev) => prev.filter((i) => i.id !== invite.id));
+      await load();
+      navigation.navigate('GroupDetail', { groupId: invite.groupId });
+    } catch (err) {
+      Alert.alert('Could not join group', getErrorMessage(err));
+    } finally {
+      setActingInviteId(null);
+    }
+  };
+
+  const handleDeclineInvite = async (invite: MyInvite) => {
+    setActingInviteId(invite.id);
+    try {
+      await declineMyInvite(invite.id);
+      setInvites((prev) => prev.filter((i) => i.id !== invite.id));
+    } catch (err) {
+      Alert.alert('Could not decline invite', getErrorMessage(err));
+    } finally {
+      setActingInviteId(null);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-4 py-3">
@@ -101,6 +135,39 @@ export function GroupsListScreen() {
           <Text className="text-lg text-white">+</Text>
         </Pressable>
       </View>
+
+      {invites.length > 0 ? (
+        <View className="px-4 pb-3">
+          {invites.map((invite) => (
+            <View key={invite.id} className="mb-3 rounded-xl bg-surface p-4">
+              <Text className="text-sm text-ink">
+                <Text className="font-medium">{invite.invitedByName}</Text> invited you to{' '}
+                <Text className="font-medium">{invite.groupName}</Text>
+              </Text>
+              <View className="mt-3 flex-row gap-3">
+                <Pressable
+                  onPress={() => handleAcceptInvite(invite)}
+                  disabled={actingInviteId === invite.id}
+                  className="flex-1 items-center rounded-lg bg-primary py-2"
+                >
+                  {actingInviteId === invite.id ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text className="text-sm font-medium text-white">Accept</Text>
+                  )}
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeclineInvite(invite)}
+                  disabled={actingInviteId === invite.id}
+                  className="flex-1 items-center rounded-lg border border-divider py-2"
+                >
+                  <Text className="text-sm font-medium text-ink">Decline</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {!loading && rows.length > 0 ? (
         <View className="flex-row items-center justify-between px-4 pb-3">
