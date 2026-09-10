@@ -3,40 +3,30 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
-import { createGroup } from '../api/groups';
+import { addFriend } from '../api/friends';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { getErrorMessage } from '../utils/errors';
 
-type Navigation = NativeStackNavigationProp<RootStackParamList, 'CreateGroup'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
-export function CreateGroupScreen() {
+export function AddFriendScreen() {
   const navigation = useNavigation<Navigation>();
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [defaultCurrency, setDefaultCurrency] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      setError('Enter a group name');
-      return;
-    }
-    if (!defaultCurrency.trim()) {
-      setError('Enter a currency code, e.g. INR');
+  const handleAdd = async () => {
+    if (!email.trim()) {
+      setError('Enter an email address');
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await createGroup({
-        name: name.trim(),
-        description: description.trim() || undefined,
-        defaultCurrency: defaultCurrency.trim(),
-      });
+      await addFriend(email.trim());
       navigation.goBack();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -51,25 +41,22 @@ export function CreateGroupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-        <TextField label="Group name" placeholder="Goa Trip" value={name} onChangeText={setName} />
+        <Text className="mb-4 text-sm text-subtle">
+          They must already have a BillBuddy account. Adding a friend is instant, no approval
+          needed.
+        </Text>
         <TextField
-          label="Description (optional)"
-          placeholder="Beach house squad"
-          value={description}
-          onChangeText={setDescription}
-        />
-        <TextField
-          label="Default currency"
-          placeholder="INR"
-          autoCapitalize="characters"
-          value={defaultCurrency}
-          onChangeText={setDefaultCurrency}
+          label="Email"
+          placeholder="friend@example.com"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
         />
 
         {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
         <View className="mt-2">
-          <Button label="Create group" onPress={handleCreate} loading={loading} />
+          <Button label="Add friend" onPress={handleAdd} loading={loading} />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

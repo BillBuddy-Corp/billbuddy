@@ -23,17 +23,13 @@ export function Button({
       onPress={onPress}
       disabled={isDisabled}
       className={`w-full items-center justify-center rounded-lg py-3 ${
-        isPrimary ? 'bg-primary' : 'border border-gray-300 bg-white'
+        isPrimary ? 'bg-primary' : 'border border-divider bg-surface'
       } ${isDisabled ? 'opacity-50' : ''}`}
     >
       {loading ? (
         <ActivityIndicator color={isPrimary ? 'white' : '#2F6FED'} />
       ) : (
-        <Text
-          className={`text-sm font-medium ${isPrimary ? 'text-white' : 'text-black'}`}
-        >
-          {label}
-        </Text>
+        <Text className={`text-sm font-medium ${isPrimary ? 'text-white' : 'text-ink'}`}>{label}</Text>
       )}
     </Pressable>
   );

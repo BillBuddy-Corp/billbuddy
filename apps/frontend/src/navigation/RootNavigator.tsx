@@ -1,13 +1,23 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
+import { AddExpenseScreen } from '../screens/AddExpenseScreen';
+import { AddFriendScreen } from '../screens/AddFriendScreen';
+import { AdjustSplitScreen } from '../screens/AdjustSplitScreen';
+import { BalancesScreen } from '../screens/BalancesScreen';
 import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
+import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
+import { GroupSettingsScreen } from '../screens/GroupSettingsScreen';
+import { InvitesScreen } from '../screens/InvitesScreen';
+import { SettleUpScreen } from '../screens/SettleUpScreen';
+import { JoinGroupParams, JoinGroupScreen } from '../screens/JoinGroupScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordParams, ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { VerifyEmailParams, VerifyEmailScreen } from '../screens/VerifyEmailScreen';
+import { WhoPaidScreen } from '../screens/WhoPaidScreen';
 import { useAuthStore } from '../store/authStore';
 import { MainTabs } from './MainTabs';
 
@@ -20,17 +30,37 @@ import { MainTabs } from './MainTabs';
 // standard "stack wraps tabs" pattern for screens that shouldn't show the
 // tab bar (a detail view, a modal-like create form).
 export type RootStackParamList = {
-  Login: undefined;
-  Signup: undefined;
+  Login: { token?: string };
+  Signup: { token?: string };
   ForgotPassword: undefined;
   MainTabs: undefined;
   GroupDetail: { groupId: number };
   CreateGroup: undefined;
+  FriendDetail: { friendUserId: number };
+  AddFriend: undefined;
+  GroupSettings: { groupId: number };
+  Invites: { groupId: number; isAdmin: boolean };
+  AddExpense: { groupId: number } | { friendUserId: number };
+  WhoPaid: undefined;
+  AdjustSplit: undefined;
+  SettleUp: { groupId: number };
+  Balances: { groupId: number };
   ResetPassword: ResetPasswordParams;
   VerifyEmail: VerifyEmailParams;
+  JoinGroup: JoinGroupParams;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Header options for screens already converted to the Splitwise-style dark
+// theme, so the native header bar matches their dark content instead of
+// React Navigation's default light header.
+const darkHeaderOptions = {
+  headerShown: true,
+  headerStyle: { backgroundColor: '#0D0D0D' },
+  headerTintColor: '#F5F5F7',
+  headerShadowVisible: false,
+} as const;
 
 export function RootNavigator() {
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -38,7 +68,7 @@ export function RootNavigator() {
 
   if (!isHydrated) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color="#2F6FED" />
       </View>
     );
@@ -49,15 +79,56 @@ export function RootNavigator() {
       {hasSession ? (
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen
-            name="GroupDetail"
-            component={GroupDetailScreen}
-            options={{ headerShown: true, title: '' }}
-          />
+          <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen
             name="CreateGroup"
             component={CreateGroupScreen}
-            options={{ headerShown: true, title: 'New group', presentation: 'modal' }}
+            options={{ ...darkHeaderOptions, title: 'New group', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="FriendDetail"
+            component={FriendDetailScreen}
+            options={{ ...darkHeaderOptions, title: '' }}
+          />
+          <Stack.Screen
+            name="AddFriend"
+            component={AddFriendScreen}
+            options={{ ...darkHeaderOptions, title: 'Add friend', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="GroupSettings"
+            component={GroupSettingsScreen}
+            options={{ ...darkHeaderOptions, title: 'Group settings' }}
+          />
+          <Stack.Screen
+            name="Invites"
+            component={InvitesScreen}
+            options={{ ...darkHeaderOptions, title: 'Invite people' }}
+          />
+          <Stack.Screen
+            name="AddExpense"
+            component={AddExpenseScreen}
+            options={{ ...darkHeaderOptions, title: 'Add expense', presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="WhoPaid"
+            component={WhoPaidScreen}
+            options={{ ...darkHeaderOptions, title: 'Who paid?' }}
+          />
+          <Stack.Screen
+            name="AdjustSplit"
+            component={AdjustSplitScreen}
+            options={{ ...darkHeaderOptions, title: 'Adjust split' }}
+          />
+          <Stack.Screen
+            name="SettleUp"
+            component={SettleUpScreen}
+            options={{ ...darkHeaderOptions, title: 'Settle up' }}
+          />
+          <Stack.Screen
+            name="Balances"
+            component={BalancesScreen}
+            options={{ ...darkHeaderOptions, title: 'Balances' }}
           />
         </>
       ) : (
@@ -69,6 +140,7 @@ export function RootNavigator() {
       )}
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+      <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
     </Stack.Navigator>
   );
 }

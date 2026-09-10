@@ -12,23 +12,23 @@ type AuthCardProps = {
 
 export function AuthCard({ activeTab, onTabChange, tagline, children }: AuthCardProps) {
   return (
-    <View className="w-full rounded-2xl border border-gray-200 bg-white px-6 py-7">
+    <View className="w-full rounded-2xl border border-divider bg-surface px-6 py-7">
       <View className="mb-7 items-center">
         <Logo />
-        <Text className="mt-3 text-lg font-medium text-black">BillBuddy</Text>
-        <Text className="mt-1 text-center text-sm text-gray-500">{tagline}</Text>
+        <Text className="mt-3 text-lg font-medium text-ink">BillBuddy</Text>
+        <Text className="mt-1 text-center text-sm text-subtle">{tagline}</Text>
       </View>
 
-      <View className="mb-6 flex-row rounded-lg bg-gray-100 p-1">
+      <View className="mb-6 flex-row rounded-lg bg-background p-1">
         <Pressable
           onPress={() => onTabChange('login')}
           className={`flex-1 items-center rounded-md py-2 ${
-            activeTab === 'login' ? 'bg-white' : ''
+            activeTab === 'login' ? 'bg-surface' : ''
           }`}
         >
           <Text
             className={`text-sm ${
-              activeTab === 'login' ? 'font-medium text-black' : 'text-gray-500'
+              activeTab === 'login' ? 'font-medium text-ink' : 'text-subtle'
             }`}
           >
             Log in
@@ -37,12 +37,12 @@ export function AuthCard({ activeTab, onTabChange, tagline, children }: AuthCard
         <Pressable
           onPress={() => onTabChange('signup')}
           className={`flex-1 items-center rounded-md py-2 ${
-            activeTab === 'signup' ? 'bg-white' : ''
+            activeTab === 'signup' ? 'bg-surface' : ''
           }`}
         >
           <Text
             className={`text-sm ${
-              activeTab === 'signup' ? 'font-medium text-black' : 'text-gray-500'
+              activeTab === 'signup' ? 'font-medium text-ink' : 'text-subtle'
             }`}
           >
             Sign up

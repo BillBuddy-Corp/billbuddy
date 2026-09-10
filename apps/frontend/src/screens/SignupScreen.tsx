@@ -1,9 +1,10 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
 import { login, signup } from '../api/auth';
+import { joinViaInvite } from '../api/invites';
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { AuthCard } from '../components/molecules/AuthCard';
@@ -13,9 +14,12 @@ import { getDeviceId } from '../utils/deviceId';
 import { getErrorMessage } from '../utils/errors';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
+type Route = RouteProp<RootStackParamList, 'Signup'>;
 
 export function SignupScreen() {
   const navigation = useNavigation<Navigation>();
+  const route = useRoute<Route>();
+  const pendingToken = route.params?.token;
   const setSession = useAuthStore((state) => state.setSession);
 
   const [fullName, setFullName] = useState('');
@@ -50,6 +54,23 @@ export function SignupScreen() {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
       });
+
+      if (pendingToken) {
+        try {
+          const joinResponse = await joinViaInvite(pendingToken);
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'GroupDetail', params: { groupId: joinResponse.groupId } }],
+          });
+          return;
+        } catch (joinErr) {
+          // See LoginScreen's identical comment: this screen unmounts the
+          // moment setSession resolves, so an error set here would never
+          // render. Fall through to the normal post-signup destination.
+          getErrorMessage(joinErr);
+        }
+      }
+
       navigation.reset({
         index: 0,
         routes: [{ name: emailVerified ? 'MainTabs' : 'VerifyEmail' }],
@@ -63,7 +84,7 @@ export function SignupScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-primary-tint"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
@@ -72,7 +93,7 @@ export function SignupScreen() {
       >
         <AuthCard
           activeTab="signup"
-          onTabChange={(tab) => tab === 'login' && navigation.navigate('Login')}
+          onTabChange={(tab) => tab === 'login' && navigation.navigate('Login', { token: pendingToken })}
           tagline="Create an account to get started"
         >
           <TextField
@@ -96,16 +117,16 @@ export function SignupScreen() {
             onChangeText={setPassword}
           />
 
-          {error ? <Text className="mb-3 text-sm text-red-500">{error}</Text> : null}
+          {error ? <Text className="mb-3 text-sm text-red-400">{error}</Text> : null}
 
           <View className="mb-4">
             <Button label="Create account" onPress={handleSignup} loading={loading} />
           </View>
 
           <View className="mb-4 flex-row items-center">
-            <View className="h-px flex-1 bg-gray-200" />
-            <Text className="mx-2.5 text-xs text-gray-400">or</Text>
-            <View className="h-px flex-1 bg-gray-200" />
+            <View className="h-px flex-1 bg-divider" />
+            <Text className="mx-2.5 text-xs text-subtle">or</Text>
+            <View className="h-px flex-1 bg-divider" />
           </View>
 
           <Button label="Continue with Google" variant="secondary" onPress={() => {}} />

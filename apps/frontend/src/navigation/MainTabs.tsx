@@ -2,10 +2,14 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { AccountScreen } from '../screens/AccountScreen';
+import { ActivityScreen } from '../screens/ActivityScreen';
+import { FriendsListScreen } from '../screens/FriendsListScreen';
 import { GroupsListScreen } from '../screens/GroupsListScreen';
 
 export type MainTabsParamList = {
   Groups: undefined;
+  Friends: undefined;
+  Activity: undefined;
   Account: undefined;
 };
 
@@ -18,6 +22,7 @@ export function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: '#2F6FED',
         tabBarInactiveTintColor: '#9CA3AF',
+        tabBarStyle: { backgroundColor: '#0D0D0D', borderTopColor: '#2C2C2E' },
       }}
     >
       <Tab.Screen
@@ -26,6 +31,24 @@ export function MainTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account-group" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Friends"
+        component={FriendsListScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account-multiple" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Activity"
+        component={ActivityScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="pulse" color={color} size={size} />
           ),
         }}
       />
