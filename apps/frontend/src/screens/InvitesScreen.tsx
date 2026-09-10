@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Friend, listFriends } from '../api/friends';
+import { listMembers } from '../api/groups';
 import {
   createEmailInvite,
   disableLink,
@@ -15,6 +17,7 @@ import {
 import { Button } from '../components/atoms/Button';
 import { TextField } from '../components/atoms/TextField';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { avatarColor } from '../utils/avatarColor';
 import { getErrorMessage } from '../utils/errors';
 
 function LinkRow({
@@ -63,11 +66,19 @@ export function InvitesScreen() {
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  const [addableFriends, setAddableFriends] = useState<Friend[]>([]);
+  const [addingFriendId, setAddingFriendId] = useState<number | null>(null);
 
   const loadInvites = useCallback(async () => {
     try {
-      const data = await listInvites(groupId);
+      const [data, friends, members] = await Promise.all([
+        listInvites(groupId),
+        listFriends().catch(() => []),
+        listMembers(groupId).catch(() => []),
+      ]);
       setInvites(data);
+      const memberEmails = new Set(members.map((m) => m.email));
+      setAddableFriends(friends.filter((f) => !memberEmails.has(f.email)));
       setError('');
     } catch (err) {
       setError(getErrorMessage(err));
@@ -84,6 +95,21 @@ export function InvitesScreen() {
 
   const activeLink = invites.find((invite) => invite.type === 'LINK' && !invite.revoked);
   const pendingInvites = invites.filter((invite) => !invite.revoked);
+  const pendingEmails = new Set(
+    pendingInvites.filter((invite) => invite.type === 'EMAIL').map((invite) => invite.email)
+  );
+
+  const handleAddFriend = async (friend: Friend) => {
+    setAddingFriendId(friend.userId);
+    try {
+      await createEmailInvite(groupId, friend.email);
+      await loadInvites();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setAddingFriendId(null);
+    }
+  };
 
   const handleGenerateLink = async () => {
     setLinkBusy(true);
@@ -164,7 +190,45 @@ export function InvitesScreen() {
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={
           <View className="px-5 pt-4">
-            <Text className="text-xs font-medium uppercase text-subtle">Invite link</Text>
+            {addableFriends.length > 0 ? (
+              <>
+                <Text className="text-xs font-medium uppercase text-subtle">Add from your friends</Text>
+                <View className="mt-2">
+                  {addableFriends.map((friend) => {
+                    const invited = pendingEmails.has(friend.email);
+                    return (
+                      <View key={friend.userId} className="flex-row items-center border-b border-divider py-3">
+                        <View
+                          className="mr-3 h-9 w-9 items-center justify-center rounded-full"
+                          style={{ backgroundColor: avatarColor(friend.userId) }}
+                        >
+                          <Text className="text-xs font-semibold text-white">
+                            {friend.fullName.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <Text className="flex-1 text-sm font-medium text-ink">{friend.fullName}</Text>
+                        {invited ? (
+                          <Text className="text-xs text-subtle">Invited</Text>
+                        ) : (
+                          <Pressable
+                            onPress={() => handleAddFriend(friend)}
+                            disabled={addingFriendId === friend.userId}
+                          >
+                            {addingFriendId === friend.userId ? (
+                              <ActivityIndicator size="small" color="#2F6FED" />
+                            ) : (
+                              <Text className="text-sm font-medium text-primary">Add</Text>
+                            )}
+                          </Pressable>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+
+            <Text className="mt-6 text-xs font-medium uppercase text-subtle">Invite link</Text>
             {activeLink?.token ? (
               <View className="mt-2">
                 <View className="border-b border-divider py-3">

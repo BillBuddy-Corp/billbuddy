@@ -5,8 +5,10 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { addFriend, listFriends } from '../api/friends';
 import { getGroup, getGroupBalances, Group, GroupMember, listMembers } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { useAuthStore } from '../store/authStore';
 import { avatarColor } from '../utils/avatarColor';
 import { memberBalanceLabel } from '../utils/balance';
 import { getErrorMessage } from '../utils/errors';
@@ -18,23 +20,28 @@ export function GroupSettingsScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const { groupId } = route.params;
+  const currentUserId = useAuthStore((state) => state.user?.userId);
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [balances, setBalances] = useState<Map<number, number>>(new Map());
+  const [friendIds, setFriendIds] = useState<Set<number>>(new Set());
+  const [addingFriendId, setAddingFriendId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [groupData, memberData, balanceData] = await Promise.all([
+      const [groupData, memberData, balanceData, friends] = await Promise.all([
         getGroup(groupId),
         listMembers(groupId),
         getGroupBalances(groupId).catch(() => []),
+        listFriends().catch(() => []),
       ]);
       setGroup(groupData);
       setMembers(memberData);
       setBalances(new Map(balanceData.map((b) => [b.userId, b.netBalance])));
+      setFriendIds(new Set(friends.map((f) => f.userId)));
       setError('');
     } catch (err) {
       setError(getErrorMessage(err));
@@ -48,6 +55,18 @@ export function GroupSettingsScreen() {
       load();
     }, [load])
   );
+
+  const handleAddFriend = async (member: GroupMember) => {
+    setAddingFriendId(member.userId);
+    try {
+      await addFriend(member.email);
+      setFriendIds((prev) => new Set(prev).add(member.userId));
+    } catch (err) {
+      Alert.alert('Could not add friend', getErrorMessage(err));
+    } finally {
+      setAddingFriendId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -111,6 +130,8 @@ export function GroupSettingsScreen() {
         keyExtractor={(item) => String(item.userId)}
         renderItem={({ item }) => {
           const summary = memberBalanceLabel(balances.get(item.userId) ?? 0, group.defaultCurrency);
+          const isSelf = item.userId === currentUserId;
+          const isFriend = friendIds.has(item.userId);
           return (
             <View className="flex-row items-center border-b border-divider px-5 py-3">
               <View
@@ -123,7 +144,25 @@ export function GroupSettingsScreen() {
                 <Text className="text-sm font-medium text-ink">{item.fullName}</Text>
                 <Text className="text-xs text-subtle">{item.email}</Text>
               </View>
-              <Text className={`text-xs font-medium ${summary.className}`}>{summary.label}</Text>
+              <View className="items-end">
+                <Text className={`text-xs font-medium ${summary.className}`}>{summary.label}</Text>
+                {!isSelf && !isFriend ? (
+                  <Pressable
+                    onPress={() => handleAddFriend(item)}
+                    disabled={addingFriendId === item.userId}
+                    className="mt-1.5 flex-row items-center"
+                  >
+                    {addingFriendId === item.userId ? (
+                      <ActivityIndicator size="small" color="#2F6FED" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons name="account-plus-outline" size={14} color="#2F6FED" />
+                        <Text className="ml-1 text-xs font-medium text-primary">Add friend</Text>
+                      </>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           );
         }}
