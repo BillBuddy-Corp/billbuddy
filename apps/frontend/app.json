@@ -30,7 +30,14 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BillBuddy needs access to your photos to attach a receipt.",
+          "cameraPermission": "BillBuddy needs access to your camera to photograph a receipt."
+        }
+      ]
     ]
   }
 }

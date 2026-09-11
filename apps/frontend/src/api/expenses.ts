@@ -8,6 +8,9 @@ export type ExpenseSplit = {
   percentage: number | null;
 };
 
+export type ExpenseItemAssignment = { userId: number; fullName: string; share: number; amountOwed: number };
+export type ExpenseItem = { id: number; name: string; amount: number; assignments: ExpenseItemAssignment[] };
+
 // Shape returned for both group expenses (GET /groups/{id}/expenses) and
 // non-group friend expenses (GET /friends/{id}/expenses) -- the backend
 // response is identical either way, groupId is just null for the latter.
@@ -26,6 +29,8 @@ export type Expense = {
   createdByName: string;
   payers: ExpensePayer[];
   splits: ExpenseSplit[];
+  // only populated when splitType is ITEMIZED
+  items: ExpenseItem[];
   createdAt: string;
   updatedAt: string;
 };
@@ -42,10 +47,16 @@ export type CreateExpenseRequest = {
   exchangeRate?: number;
   category?: string;
   paidByUserId: number;
+  // set when the expense was created from a scanned receipt (see billScanner.ts)
+  receiptFileId?: number;
 } & (
   | { splitType: 'EQUAL'; participantUserIds: number[] }
   | { splitType: 'EXACT'; exactAmounts: { userId: number; amount: number }[] }
   | { splitType: 'PERCENTAGE'; percentages: { userId: number; percentage: number }[] }
+  | {
+      splitType: 'ITEMIZED';
+      items: { name: string; amount: number; assignments: { userId: number; share: number }[] }[];
+    }
 );
 
 export type ExchangeRateSuggestion = {
@@ -74,13 +85,14 @@ export async function listGroupExpenses(groupId: number): Promise<Expense[]> {
 // (WhoPaidScreen shows it as a stubbed, disabled option for now).
 export async function createExpense(target: ExpenseTarget, request: CreateExpenseRequest): Promise<Expense> {
   const url = 'groupId' in target ? `/groups/${target.groupId}/expenses` : `/friends/${target.friendUserId}/expenses`;
-  const { description, amount, currency, exchangeRate, category, paidByUserId, ...split } = request;
+  const { description, amount, currency, exchangeRate, category, paidByUserId, receiptFileId, ...split } = request;
   const { data } = await apiClient.post<Expense>(url, {
     description,
     amount,
     currency,
     exchangeRate,
     category,
+    receiptFileId,
     payers: [{ userId: paidByUserId, amountPaid: amount }],
     ...split,
   });

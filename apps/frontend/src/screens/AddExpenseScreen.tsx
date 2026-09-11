@@ -1,9 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,8 +16,10 @@ import {
   View,
 } from 'react-native';
 
+import { scanReceipt } from '../api/billScanner';
 import { createExpense, CreateExpenseRequest, getSuggestedExchangeRate } from '../api/expenses';
 import { Friend, listFriends } from '../api/friends';
+import { uploadFile } from '../api/files';
 import { getGroup, listMembers } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { displayName, useAddExpenseFormStore } from '../store/addExpenseFormStore';
@@ -31,6 +36,7 @@ const CATEGORIES = ['Food', 'Groceries', 'Transport', 'Travel', 'Rent', 'Utiliti
 function splitLabel(splitType: string): string {
   if (splitType === 'EXACT') return 'unequally';
   if (splitType === 'PERCENTAGE') return 'by percentages';
+  if (splitType === 'ITEMIZED') return 'by items';
   return 'equally';
 }
 
@@ -55,6 +61,7 @@ export function AddExpenseScreen() {
   const [rateError, setRateError] = useState('');
   const [rateAsOf, setRateAsOf] = useState('');
   const rateFetchToken = useRef(0);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     if (!currentUser || initialized.current) return;
@@ -124,6 +131,78 @@ export function AddExpenseScreen() {
 
   const payer = store.participants.find((p) => p.userId === store.paidByUserId);
 
+  const runScan = async (uri: string, fileName: string | null | undefined, mimeType: string | null | undefined) => {
+    setScanning(true);
+    setError('');
+    try {
+      const uploaded = await uploadFile(uri, fileName ?? 'receipt.jpg', mimeType ?? 'image/jpeg');
+      const scan = await scanReceipt(uploaded.id);
+      if (scan.needsReview || scan.amount === null || scan.items.length === 0) {
+        Alert.alert(
+          "Couldn't read this receipt reliably",
+          'Add the expense manually instead, or try a clearer photo.'
+        );
+        return;
+      }
+      if (scan.merchant && !description.trim()) setDescription(scan.merchant);
+      store.setAmount(String(scan.amount));
+      if (scan.currency) store.setCurrency(scan.currency);
+      store.setItemsFromScan(
+        scan.items.map((item) => ({
+          name: item.quantity && item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name,
+          amount: item.amount,
+        }))
+      );
+      store.setSplitType('ITEMIZED');
+      store.setReceiptFileId(uploaded.id);
+      navigation.navigate('ItemizedSplit', {
+        merchant: scan.merchant ?? undefined,
+        discountsNeedReview: scan.discountsNeedReview,
+      });
+    } catch (err) {
+      Alert.alert('Could not scan receipt', getErrorMessage(err));
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const pickAndScan = async (source: 'camera' | 'library') => {
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', `Allow access to your ${source === 'camera' ? 'camera' : 'photos'} to scan a receipt.`);
+      return;
+    }
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    await runScan(asset.uri, asset.fileName, asset.mimeType);
+  };
+
+  const handleScanReceipt = () => {
+    if (scanning) return;
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Take Photo', 'Choose from Library', 'Cancel'], cancelButtonIndex: 2 },
+        (index) => {
+          if (index === 0) pickAndScan('camera');
+          if (index === 1) pickAndScan('library');
+        }
+      );
+    } else {
+      Alert.alert('Scan a receipt', undefined, [
+        { text: 'Take Photo', onPress: () => pickAndScan('camera') },
+        { text: 'Choose from Library', onPress: () => pickAndScan('library') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
   const handleCreate = async () => {
     if (!description.trim()) {
       setError('Enter a description');
@@ -138,7 +217,16 @@ export function AddExpenseScreen() {
       setError('Choose who paid');
       return;
     }
-    if (store.splitParticipantIds.length === 0) {
+    if (store.splitType === 'ITEMIZED') {
+      if (store.items.length === 0) {
+        setError('No items to split -- scan a receipt first');
+        return;
+      }
+      if (store.items.some((item) => item.assignedUserIds.length === 0)) {
+        setError('Every item needs at least one person assigned');
+        return;
+      }
+    } else if (store.splitParticipantIds.length === 0) {
       setError('Choose at least one person to split with');
       return;
     }
@@ -158,6 +246,7 @@ export function AddExpenseScreen() {
       exchangeRate,
       category: category ?? undefined,
       paidByUserId: store.paidByUserId,
+      receiptFileId: store.receiptFileId ?? undefined,
     };
 
     let request: CreateExpenseRequest;
@@ -174,7 +263,7 @@ export function AddExpenseScreen() {
         return;
       }
       request = { ...base, splitType: 'EXACT', exactAmounts };
-    } else {
+    } else if (store.splitType === 'PERCENTAGE') {
       const percentages = store.splitParticipantIds.map((userId) => ({
         userId,
         percentage: Number(store.percentages[userId] ?? '0'),
@@ -185,6 +274,13 @@ export function AddExpenseScreen() {
         return;
       }
       request = { ...base, splitType: 'PERCENTAGE', percentages };
+    } else {
+      const items = store.items.map((item) => ({
+        name: item.name,
+        amount: item.amount,
+        assignments: item.assignedUserIds.map((userId) => ({ userId, share: 1 })),
+      }));
+      request = { ...base, splitType: 'ITEMIZED', items };
     }
 
     setError('');
@@ -217,7 +313,13 @@ export function AddExpenseScreen() {
         </View>
 
         <View className="mb-5 flex-row items-center border-b border-divider pb-2">
-          <MaterialCommunityIcons name="receipt" size={20} color="#9CA3AF" />
+          <Pressable onPress={handleScanReceipt} disabled={scanning} hitSlop={8}>
+            {scanning ? (
+              <ActivityIndicator size="small" color="#2F6FED" />
+            ) : (
+              <MaterialCommunityIcons name="receipt" size={20} color="#2F6FED" />
+            )}
+          </Pressable>
           <TextInput
             placeholder="Description"
             placeholderTextColor="#9CA3AF"
@@ -288,7 +390,7 @@ export function AddExpenseScreen() {
           </Pressable>
           <Text className="text-sm text-subtle">and split</Text>
           <Pressable
-            onPress={() => navigation.navigate('AdjustSplit')}
+            onPress={() => navigation.navigate(store.splitType === 'ITEMIZED' ? 'ItemizedSplit' : 'AdjustSplit')}
             className="ml-1.5 rounded-full bg-surface px-3 py-1"
           >
             <Text className="text-sm font-medium text-primary">{splitLabel(store.splitType)}</Text>

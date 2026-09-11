@@ -12,6 +12,7 @@ import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
 import { GroupSettingsScreen } from '../screens/GroupSettingsScreen';
 import { InvitesScreen } from '../screens/InvitesScreen';
+import { ItemizedSplitScreen } from '../screens/ItemizedSplitScreen';
 import { SettleUpScreen } from '../screens/SettleUpScreen';
 import { JoinGroupParams, JoinGroupScreen } from '../screens/JoinGroupScreen';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -45,6 +46,7 @@ export type RootStackParamList = {
   AddExpense: { groupId: number } | { friendUserId: number };
   WhoPaid: undefined;
   AdjustSplit: undefined;
+  ItemizedSplit: { merchant?: string; discountsNeedReview?: boolean } | undefined;
   SettleUp: { groupId: number };
   Balances: { groupId: number };
   ResetPassword: ResetPasswordParams;
@@ -126,6 +128,11 @@ export function RootNavigator() {
             name="AdjustSplit"
             component={AdjustSplitScreen}
             options={{ ...darkHeaderOptions, title: 'Adjust split' }}
+          />
+          <Stack.Screen
+            name="ItemizedSplit"
+            component={ItemizedSplitScreen}
+            options={{ ...darkHeaderOptions, title: 'Split by item' }}
           />
           <Stack.Screen
             name="SettleUp"
