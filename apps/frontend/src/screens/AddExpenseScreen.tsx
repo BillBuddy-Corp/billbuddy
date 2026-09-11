@@ -2,9 +2,18 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
-import { createExpense, CreateExpenseRequest } from '../api/expenses';
+import { createExpense, CreateExpenseRequest, getSuggestedExchangeRate } from '../api/expenses';
 import { Friend, listFriends } from '../api/friends';
 import { getGroup, listMembers } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -29,6 +38,7 @@ export function AddExpenseScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const target = route.params;
+  const groupId = 'groupId' in target ? target.groupId : null;
   const currentUser = useAuthStore((state) => state.user);
 
   const store = useAddExpenseFormStore();
@@ -41,6 +51,10 @@ export function AddExpenseScreen() {
   const [category, setCategory] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateError, setRateError] = useState('');
+  const [rateAsOf, setRateAsOf] = useState('');
+  const rateFetchToken = useRef(0);
 
   useEffect(() => {
     if (!currentUser || initialized.current) return;
@@ -51,11 +65,12 @@ export function AddExpenseScreen() {
         const [group, members] = await Promise.all([getGroup(target.groupId), listMembers(target.groupId)]);
         setHeaderLabel(`With ${group.name}`);
         setHeaderColorSeed(target.groupId);
-        setCurrencyEditable(false);
+        setCurrencyEditable(true);
         store.init(
           members.map((m) => ({ userId: m.userId, fullName: m.fullName })),
           group.defaultCurrency,
-          currentUser.userId
+          currentUser.userId,
+          group.defaultCurrency
         );
       } else {
         const friends = await listFriends();
@@ -74,6 +89,38 @@ export function AddExpenseScreen() {
       }
     })();
   }, [currentUser, target, store]);
+
+  const needsExchangeRate =
+    groupId !== null && Boolean(store.groupDefaultCurrency) && store.currency !== store.groupDefaultCurrency;
+
+  // Debounced: re-suggests a rate whenever the typed currency (that's
+  // diverged from the group's default) settles for a moment, rather than on
+  // every keystroke. Falls back to manual entry if the lookup fails -- the
+  // rate field stays editable either way.
+  useEffect(() => {
+    if (!needsExchangeRate || groupId === null || store.currency.length !== 3) {
+      setRateError('');
+      return;
+    }
+    const myToken = ++rateFetchToken.current;
+    const timer = setTimeout(async () => {
+      setRateLoading(true);
+      setRateError('');
+      try {
+        const suggestion = await getSuggestedExchangeRate(groupId, store.currency);
+        if (rateFetchToken.current !== myToken) return;
+        store.setExchangeRate(String(suggestion.rate));
+        setRateAsOf(suggestion.asOf);
+      } catch (err) {
+        if (rateFetchToken.current !== myToken) return;
+        setRateError(getErrorMessage(err));
+      } finally {
+        if (rateFetchToken.current === myToken) setRateLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsExchangeRate, groupId, store.currency]);
 
   const payer = store.participants.find((p) => p.userId === store.paidByUserId);
 
@@ -95,11 +142,20 @@ export function AddExpenseScreen() {
       setError('Choose at least one person to split with');
       return;
     }
+    let exchangeRate: number | undefined;
+    if (needsExchangeRate) {
+      exchangeRate = Number(store.exchangeRate);
+      if (!store.exchangeRate.trim() || Number.isNaN(exchangeRate) || exchangeRate <= 0) {
+        setError(`Enter the exchange rate from ${store.currency} to ${store.groupDefaultCurrency}`);
+        return;
+      }
+    }
 
     const base = {
       description: description.trim(),
       amount: parsedAmount,
       currency: store.currency,
+      exchangeRate,
       category: category ?? undefined,
       paidByUserId: store.paidByUserId,
     };
@@ -192,6 +248,33 @@ export function AddExpenseScreen() {
             className="ml-3 flex-1 text-2xl font-semibold text-ink"
           />
         </View>
+
+        {needsExchangeRate ? (
+          <View className="mb-5">
+            <View className="flex-row items-center border-b border-divider pb-2">
+              <Text className="text-sm text-subtle">
+                1 {store.currency} ={' '}
+              </Text>
+              <TextInput
+                placeholder="rate"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                value={store.exchangeRate}
+                onChangeText={store.setExchangeRate}
+                className="mx-1 w-20 text-sm font-medium text-ink"
+              />
+              <Text className="text-sm text-subtle">{store.groupDefaultCurrency}</Text>
+              {rateLoading ? <ActivityIndicator className="ml-2" size="small" color="#2F6FED" /> : null}
+            </View>
+            {rateError ? (
+              <Text className="mt-1 text-xs text-red-400">
+                Couldn't suggest a rate ({rateError}) — enter one manually
+              </Text>
+            ) : rateAsOf && !rateLoading ? (
+              <Text className="mt-1 text-xs text-subtle">Suggested rate as of {rateAsOf}</Text>
+            ) : null}
+          </View>
+        ) : null}
 
         <View className="mb-6 flex-row flex-wrap items-center">
           <Text className="text-sm text-subtle">Paid by</Text>

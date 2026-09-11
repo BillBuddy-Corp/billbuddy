@@ -36,6 +36,10 @@ export type CreateExpenseRequest = {
   description: string;
   amount: number;
   currency: string;
+  // required only when currency differs from the group's default currency;
+  // ignored (and not required) for non-group friend expenses, which never
+  // involve a group default to convert against.
+  exchangeRate?: number;
   category?: string;
   paidByUserId: number;
 } & (
@@ -43,6 +47,23 @@ export type CreateExpenseRequest = {
   | { splitType: 'EXACT'; exactAmounts: { userId: number; amount: number }[] }
   | { splitType: 'PERCENTAGE'; percentages: { userId: number; percentage: number }[] }
 );
+
+export type ExchangeRateSuggestion = {
+  fromCurrency: string;
+  toCurrency: string;
+  rate: number;
+  asOf: string;
+};
+
+export async function getSuggestedExchangeRate(
+  groupId: number,
+  fromCurrency: string
+): Promise<ExchangeRateSuggestion> {
+  const { data } = await apiClient.get<ExchangeRateSuggestion>(`/groups/${groupId}/expenses/exchange-rate`, {
+    params: { fromCurrency },
+  });
+  return data;
+}
 
 export async function listGroupExpenses(groupId: number): Promise<Expense[]> {
   const { data } = await apiClient.get<Expense[]>(`/groups/${groupId}/expenses`);
@@ -53,11 +74,12 @@ export async function listGroupExpenses(groupId: number): Promise<Expense[]> {
 // (WhoPaidScreen shows it as a stubbed, disabled option for now).
 export async function createExpense(target: ExpenseTarget, request: CreateExpenseRequest): Promise<Expense> {
   const url = 'groupId' in target ? `/groups/${target.groupId}/expenses` : `/friends/${target.friendUserId}/expenses`;
-  const { description, amount, currency, category, paidByUserId, ...split } = request;
+  const { description, amount, currency, exchangeRate, category, paidByUserId, ...split } = request;
   const { data } = await apiClient.post<Expense>(url, {
     description,
     amount,
     currency,
+    exchangeRate,
     category,
     payers: [{ userId: paidByUserId, amountPaid: amount }],
     ...split,

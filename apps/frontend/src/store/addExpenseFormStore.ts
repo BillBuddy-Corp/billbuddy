@@ -7,6 +7,11 @@ export type ExpenseParticipant = { userId: number; fullName: string };
 type AddExpenseFormState = {
   participants: ExpenseParticipant[];
   currency: string;
+  // the group's own default currency, empty for a non-group (friend)
+  // expense -- those never involve an exchange rate. Used to detect when
+  // `currency` has diverged and an exchange rate is needed.
+  groupDefaultCurrency: string;
+  exchangeRate: string;
   amount: string;
   paidByUserId: number | null;
   splitType: SplitMode;
@@ -16,9 +21,15 @@ type AddExpenseFormState = {
   splitParticipantIds: number[];
   exactAmounts: Record<number, string>;
   percentages: Record<number, string>;
-  init: (participants: ExpenseParticipant[], currency: string, defaultPayerId: number) => void;
+  init: (
+    participants: ExpenseParticipant[],
+    currency: string,
+    defaultPayerId: number,
+    groupDefaultCurrency?: string
+  ) => void;
   setAmount: (amount: string) => void;
   setCurrency: (currency: string) => void;
+  setExchangeRate: (rate: string) => void;
   setPaidBy: (userId: number) => void;
   setSplitType: (type: SplitMode) => void;
   toggleSplitParticipant: (userId: number) => void;
@@ -30,6 +41,8 @@ type AddExpenseFormState = {
 const EMPTY_STATE = {
   participants: [] as ExpenseParticipant[],
   currency: '',
+  groupDefaultCurrency: '',
+  exchangeRate: '',
   amount: '',
   paidByUserId: null as number | null,
   splitType: 'EQUAL' as SplitMode,
@@ -45,18 +58,27 @@ export function displayName(participant: ExpenseParticipant, currentUserId: numb
 export const useAddExpenseFormStore = create<AddExpenseFormState>((set) => ({
   ...EMPTY_STATE,
 
-  init: (participants, currency, defaultPayerId) =>
+  init: (participants, currency, defaultPayerId, groupDefaultCurrency = '') =>
     set({
       ...EMPTY_STATE,
       participants,
       currency,
+      groupDefaultCurrency,
       paidByUserId: defaultPayerId,
       splitParticipantIds: participants.map((p) => p.userId),
     }),
 
   setAmount: (amount) => set({ amount }),
 
-  setCurrency: (currency) => set({ currency: currency.toUpperCase() }),
+  setCurrency: (currency) =>
+    set((state) => {
+      const upper = currency.toUpperCase();
+      // Dropping back to the group's own currency means no conversion is
+      // needed anymore -- clear any rate typed in for the previous one.
+      return upper === state.groupDefaultCurrency ? { currency: upper, exchangeRate: '' } : { currency: upper };
+    }),
+
+  setExchangeRate: (exchangeRate) => set({ exchangeRate }),
 
   setPaidBy: (userId) => set({ paidByUserId: userId }),
 
