@@ -124,12 +124,21 @@ export function GroupSettingsScreen() {
         </View>
         <View className="mt-3 flex-row items-center">
           <Text className="text-lg font-semibold text-ink">{group.name}</Text>
-          <Pressable
-            className="ml-2"
-            onPress={() => Alert.alert('Coming soon', "Editing group details isn't available yet.")}
-          >
-            <MaterialCommunityIcons name="pencil-outline" size={16} color="#9CA3AF" />
-          </Pressable>
+          {group.currentUserRole === 'ADMIN' ? (
+            <Pressable
+              className="ml-2"
+              onPress={() =>
+                navigation.navigate('EditGroup', {
+                  groupId,
+                  name: group.name,
+                  description: group.description,
+                  defaultCurrency: group.defaultCurrency,
+                })
+              }
+            >
+              <MaterialCommunityIcons name="pencil-outline" size={16} color="#9CA3AF" />
+            </Pressable>
+          ) : null}
         </View>
         <Text className="mt-1 text-sm text-subtle">
           {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · {group.defaultCurrency}

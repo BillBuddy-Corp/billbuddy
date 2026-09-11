@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -68,6 +69,8 @@ export function InvitesScreen() {
   const [emailSent, setEmailSent] = useState(false);
   const [addableFriends, setAddableFriends] = useState<Friend[]>([]);
   const [addingFriendId, setAddingFriendId] = useState<number | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadInvites = useCallback(async () => {
     try {
@@ -122,6 +125,14 @@ export function InvitesScreen() {
     } finally {
       setLinkBusy(false);
     }
+  };
+
+  const handleCopyLink = async () => {
+    if (!activeLink?.token) return;
+    await Clipboard.setStringAsync(buildJoinLink(activeLink.token));
+    setLinkCopied(true);
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+    copyResetTimer.current = setTimeout(() => setLinkCopied(false), 2000);
   };
 
   const handleShareLink = async () => {
@@ -236,6 +247,11 @@ export function InvitesScreen() {
                     {buildJoinLink(activeLink.token)}
                   </Text>
                 </View>
+                <LinkRow
+                  icon={linkCopied ? 'check' : 'content-copy'}
+                  label={linkCopied ? 'Copied' : 'Copy link'}
+                  onPress={handleCopyLink}
+                />
                 <LinkRow icon="share-variant-outline" label="Share link" onPress={handleShareLink} />
                 {isAdmin ? (
                   <>
