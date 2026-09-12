@@ -148,15 +148,16 @@ export function AddExpenseScreen() {
       store.setAmount(String(scan.amount));
       if (scan.currency) store.setCurrency(scan.currency);
       store.setItemsFromScan(
-        scan.items.map((item) => ({
-          name: item.quantity && item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name,
-          amount: item.amount,
-        }))
+        scan.items.map((item) => ({ name: item.name, amount: item.amount, quantity: item.quantity }))
       );
       store.setSplitType('ITEMIZED');
       store.setReceiptFileId(uploaded.id);
       navigation.navigate('ItemizedSplit', {
         merchant: scan.merchant ?? undefined,
+        transactionDate: scan.transactionDate ?? undefined,
+        subtotal: scan.subtotal ?? undefined,
+        otherDiscount: scan.otherDiscount ?? undefined,
+        voucherAmount: scan.voucherAmount ?? undefined,
         discountsNeedReview: scan.discountsNeedReview,
       });
     } catch (err) {
@@ -278,7 +279,11 @@ export function AddExpenseScreen() {
       const items = store.items.map((item) => ({
         name: item.name,
         amount: item.amount,
-        assignments: item.assignedUserIds.map((userId) => ({ userId, share: 1 })),
+        assignments: item.assignedUserIds.map((userId) => {
+          const parsed = Number(item.shares[userId]);
+          const share = item.shares[userId] && Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+          return { userId, share };
+        }),
       }));
       request = { ...base, splitType: 'ITEMIZED', items };
     }

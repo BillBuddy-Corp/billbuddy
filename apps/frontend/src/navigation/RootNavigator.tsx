@@ -46,7 +46,16 @@ export type RootStackParamList = {
   AddExpense: { groupId: number } | { friendUserId: number };
   WhoPaid: undefined;
   AdjustSplit: undefined;
-  ItemizedSplit: { merchant?: string; discountsNeedReview?: boolean } | undefined;
+  ItemizedSplit:
+    | {
+        merchant?: string;
+        transactionDate?: string;
+        subtotal?: number;
+        otherDiscount?: number;
+        voucherAmount?: number;
+        discountsNeedReview?: boolean;
+      }
+    | undefined;
   SettleUp: { groupId: number };
   Balances: { groupId: number };
   ResetPassword: ResetPasswordParams;

@@ -4,11 +4,18 @@ export type SplitMode = 'EQUAL' | 'EXACT' | 'PERCENTAGE' | 'ITEMIZED';
 
 export type ExpenseParticipant = { userId: number; fullName: string };
 
-// A scanned/manually-entered item pending review -- deliberately just a set
-// of assigned participants (equal share=1 each) rather than a full per-share
-// editor; matches the "solid v1 simplification" already used elsewhere for
-// avatars/split modes in this app.
-export type ItemDraft = { name: string; amount: number; assignedUserIds: number[] };
+// A scanned/manually-entered item pending review. `assignedUserIds` is who's
+// included; `shares` holds each included person's weight as editable text
+// (mirrors exactAmounts/percentages below) -- included-but-blank defaults to
+// an equal share of 1, but typing e.g. 2 for one person and 1 for another
+// splits that item 2:1 rather than equally.
+export type ItemDraft = {
+  name: string;
+  amount: number;
+  quantity: number | null;
+  assignedUserIds: number[];
+  shares: Record<number, string>;
+};
 
 type AddExpenseFormState = {
   participants: ExpenseParticipant[];
@@ -44,9 +51,11 @@ type AddExpenseFormState = {
   setExactAmount: (userId: number, value: string) => void;
   setPercentage: (userId: number, value: string) => void;
   // Replaces the item list wholesale (e.g. right after a receipt scan),
-  // defaulting every item to being split across all current participants.
-  setItemsFromScan: (items: { name: string; amount: number }[]) => void;
+  // defaulting every item to an equal (share=1 each) split across all
+  // current participants.
+  setItemsFromScan: (items: { name: string; amount: number; quantity: number | null }[]) => void;
   toggleItemAssignment: (itemIndex: number, userId: number) => void;
+  setItemShare: (itemIndex: number, userId: number, value: string) => void;
   setReceiptFileId: (fileId: number | null) => void;
   reset: () => void;
 };
@@ -120,6 +129,7 @@ export const useAddExpenseFormStore = create<AddExpenseFormState>((set) => ({
       items: items.map((item) => ({
         ...item,
         assignedUserIds: state.participants.map((p) => p.userId),
+        shares: Object.fromEntries(state.participants.map((p) => [p.userId, '1'])),
       })),
     })),
 
@@ -133,8 +143,18 @@ export const useAddExpenseFormStore = create<AddExpenseFormState>((set) => ({
           assignedUserIds: has
             ? item.assignedUserIds.filter((id) => id !== userId)
             : [...item.assignedUserIds, userId],
+          // Turning someone back on defaults them to an equal share of 1
+          // again, rather than resurrecting whatever they'd typed before.
+          shares: has ? item.shares : { ...item.shares, [userId]: item.shares[userId] ?? '1' },
         };
       }),
+    })),
+
+  setItemShare: (itemIndex, userId, value) =>
+    set((state) => ({
+      items: state.items.map((item, index) =>
+        index === itemIndex ? { ...item, shares: { ...item.shares, [userId]: value } } : item
+      ),
     })),
 
   setReceiptFileId: (receiptFileId) => set({ receiptFileId }),
