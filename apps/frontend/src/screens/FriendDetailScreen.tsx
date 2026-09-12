@@ -15,8 +15,13 @@ import {
   removeFriend,
 } from '../api/friends';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { useAddExpenseFormStore } from '../store/addExpenseFormStore';
+import { useAuthStore } from '../store/authStore';
 import { getErrorMessage } from '../utils/errors';
 import { categoryStyle } from '../utils/expenseCategory';
+import { loadExpenseTargetContext } from '../utils/expenseTargetContext';
+import { pickAndScanReceipt } from '../utils/receiptScan';
+import { showAddExpenseOptions } from '../utils/showAddExpenseOptions';
 
 type Route = RouteProp<RootStackParamList, 'FriendDetail'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'FriendDetail'>;
@@ -42,6 +47,8 @@ export function FriendDetailScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const { friendUserId } = route.params;
+  const currentUser = useAuthStore((state) => state.user);
+  const formStore = useAddExpenseFormStore();
 
   const [friend, setFriend] = useState<Friend | null>(null);
   const [balances, setBalances] = useState<FriendBalance[]>([]);
@@ -49,6 +56,7 @@ export function FriendDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -119,6 +127,41 @@ export function FriendDetailScreen() {
     );
   };
 
+  const handleScanReceipt = async () => {
+    if (!currentUser || scanning) return;
+    setScanning(true);
+    try {
+      const result = await pickAndScanReceipt();
+      if (!result) return;
+      const context = await loadExpenseTargetContext({ friendUserId }, currentUser);
+      formStore.init(context.participants, context.currency, currentUser.userId, context.groupDefaultCurrency);
+      formStore.setDescription(result.scan.merchant ?? '');
+      formStore.setAmount(String(result.scan.amount));
+      if (result.scan.currency) formStore.setCurrency(result.scan.currency);
+      formStore.setItemsFromScan(
+        result.scan.items.map((item) => ({ name: item.name, amount: item.amount, quantity: item.quantity }))
+      );
+      formStore.setSplitType('ITEMIZED');
+      formStore.setReceiptFileId(result.fileId);
+      navigation.navigate('AddExpense', {
+        friendUserId,
+        skipInit: true,
+        headerLabel: context.headerLabel,
+        headerColorSeed: context.headerColorSeed,
+      });
+      navigation.navigate('ItemizedSplit', {
+        merchant: result.scan.merchant ?? undefined,
+        transactionDate: result.scan.transactionDate ?? undefined,
+        subtotal: result.scan.subtotal ?? undefined,
+        otherDiscount: result.scan.otherDiscount ?? undefined,
+        voucherAmount: result.scan.voucherAmount ?? undefined,
+        discountsNeedReview: result.scan.discountsNeedReview,
+      });
+    } finally {
+      setScanning(false);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="border-b border-divider px-5 py-4">
@@ -135,9 +178,11 @@ export function FriendDetailScreen() {
         <Text className="mt-1 text-sm text-subtle">{friend.email}</Text>
         <Text className={`mt-3 text-sm font-medium ${summary.className}`}>{summary.label}</Text>
         <Pressable
-          onPress={() => navigation.navigate('AddExpense', { friendUserId })}
-          className="mt-3 self-start rounded-lg bg-primary px-4 py-2"
+          onPress={() => showAddExpenseOptions(handleScanReceipt, () => navigation.navigate('AddExpense', { friendUserId }))}
+          disabled={scanning}
+          className="mt-3 flex-row items-center self-start rounded-lg bg-primary px-4 py-2"
         >
+          {scanning ? <ActivityIndicator size="small" color="white" className="mr-2" /> : null}
           <Text className="text-sm font-medium text-white">Add expense</Text>
         </Pressable>
       </View>
@@ -149,7 +194,10 @@ export function FriendDetailScreen() {
         renderItem={({ item }) => {
           const style = categoryStyle(item.category);
           return (
-            <View className="flex-row items-center border-b border-divider px-5 py-3">
+            <Pressable
+              onPress={() => navigation.navigate('ExpenseDetail', { expense: item })}
+              className="flex-row items-center border-b border-divider px-5 py-3"
+            >
               <View
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full"
                 style={{ backgroundColor: `${style.color}33` }}
@@ -163,7 +211,7 @@ export function FriendDetailScreen() {
               <Text className="text-sm text-ink">
                 {item.amount.toFixed(2)} {item.currency}
               </Text>
-            </View>
+            </Pressable>
           );
         }}
         ListEmptyComponent={

@@ -1,4 +1,6 @@
+import { ENV } from '../config/env';
 import { apiClient } from './client';
+import { getAccessToken } from './tokenHolder';
 
 export type UploadedFile = {
   id: number;
@@ -7,6 +9,20 @@ export type UploadedFile = {
   fileSizeBytes: number;
   createdAt: string;
 };
+
+// The backend's `url` fields (UploadedFile.url, Expense.receiptUrl) are
+// relative paths like "/api/v1/files/42" -- not a full origin, and not
+// presigned. GET /files/{id} requires a bearer token, so plain <Image
+// source={{uri}}> can't load it; source={{uri, headers}} is required.
+const API_ORIGIN = ENV.API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+
+export function authenticatedImageSource(relativeUrl: string): { uri: string; headers: Record<string, string> } {
+  const token = getAccessToken();
+  return {
+    uri: `${API_ORIGIN}${relativeUrl}`,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  };
+}
 
 // `uri` is a local file:// (or content://) URI from the image picker. RN's
 // FormData/fetch implementation fills in the multipart boundary itself, so

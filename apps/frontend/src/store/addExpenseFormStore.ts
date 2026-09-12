@@ -19,6 +19,7 @@ export type ItemDraft = {
 
 type AddExpenseFormState = {
   participants: ExpenseParticipant[];
+  description: string;
   currency: string;
   // the group's own default currency, empty for a non-group (friend)
   // expense -- those never involve an exchange rate. Used to detect when
@@ -42,6 +43,7 @@ type AddExpenseFormState = {
     defaultPayerId: number,
     groupDefaultCurrency?: string
   ) => void;
+  setDescription: (description: string) => void;
   setAmount: (amount: string) => void;
   setCurrency: (currency: string) => void;
   setExchangeRate: (rate: string) => void;
@@ -62,6 +64,7 @@ type AddExpenseFormState = {
 
 const EMPTY_STATE = {
   participants: [] as ExpenseParticipant[],
+  description: '',
   currency: '',
   groupDefaultCurrency: '',
   exchangeRate: '',
@@ -91,6 +94,8 @@ export const useAddExpenseFormStore = create<AddExpenseFormState>((set) => ({
       paidByUserId: defaultPayerId,
       splitParticipantIds: participants.map((p) => p.userId),
     }),
+
+  setDescription: (description) => set({ description }),
 
   setAmount: (amount) => set({ amount }),
 

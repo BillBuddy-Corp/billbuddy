@@ -8,12 +8,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Expense, listGroupExpenses } from '../api/expenses';
 import { getGroup, getGroupBalances, Group } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { useAddExpenseFormStore } from '../store/addExpenseFormStore';
 import { useAuthStore } from '../store/authStore';
 import { avatarColor } from '../utils/avatarColor';
 import { groupByDate } from '../utils/date';
 import { getErrorMessage } from '../utils/errors';
 import { categoryStyle } from '../utils/expenseCategory';
 import { myImpact } from '../utils/expenseImpact';
+import { loadExpenseTargetContext } from '../utils/expenseTargetContext';
+import { pickAndScanReceipt } from '../utils/receiptScan';
+import { showAddExpenseOptions } from '../utils/showAddExpenseOptions';
 
 type Route = RouteProp<RootStackParamList, 'GroupDetail'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'GroupDetail'>;
@@ -22,13 +26,16 @@ export function GroupDetailScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const { groupId } = route.params;
-  const currentUserId = useAuthStore((state) => state.user?.userId);
+  const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser?.userId;
+  const formStore = useAddExpenseFormStore();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [myBalance, setMyBalance] = useState(0);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -77,6 +84,45 @@ export function GroupDetailScreen() {
       </SafeAreaView>
     );
   }
+
+  // Picks + uploads + OCR-scans a photo before navigating anywhere, so
+  // tapping "Scan a receipt" goes straight to the native picker instead of
+  // flashing an empty Add Expense screen first. Only pushes screens once
+  // the scan actually succeeds.
+  const handleScanReceipt = async () => {
+    if (!currentUser || scanning) return;
+    setScanning(true);
+    try {
+      const result = await pickAndScanReceipt();
+      if (!result) return;
+      const context = await loadExpenseTargetContext({ groupId }, currentUser);
+      formStore.init(context.participants, context.currency, currentUser.userId, context.groupDefaultCurrency);
+      formStore.setDescription(result.scan.merchant ?? '');
+      formStore.setAmount(String(result.scan.amount));
+      if (result.scan.currency) formStore.setCurrency(result.scan.currency);
+      formStore.setItemsFromScan(
+        result.scan.items.map((item) => ({ name: item.name, amount: item.amount, quantity: item.quantity }))
+      );
+      formStore.setSplitType('ITEMIZED');
+      formStore.setReceiptFileId(result.fileId);
+      navigation.navigate('AddExpense', {
+        groupId,
+        skipInit: true,
+        headerLabel: context.headerLabel,
+        headerColorSeed: context.headerColorSeed,
+      });
+      navigation.navigate('ItemizedSplit', {
+        merchant: result.scan.merchant ?? undefined,
+        transactionDate: result.scan.transactionDate ?? undefined,
+        subtotal: result.scan.subtotal ?? undefined,
+        otherDiscount: result.scan.otherDiscount ?? undefined,
+        voucherAmount: result.scan.voucherAmount ?? undefined,
+        discountsNeedReview: result.scan.discountsNeedReview,
+      });
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const balanceSummary =
     Math.abs(myBalance) < 0.01
@@ -139,7 +185,10 @@ export function GroupDetailScreen() {
           const style = categoryStyle(item.category);
           const impact = currentUserId ? myImpact(item, currentUserId) : null;
           return (
-            <View className="flex-row items-center px-5 py-3">
+            <Pressable
+              onPress={() => navigation.navigate('ExpenseDetail', { expense: item })}
+              className="flex-row items-center px-5 py-3"
+            >
               <View
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full"
                 style={{ backgroundColor: `${style.color}33` }}
@@ -158,7 +207,7 @@ export function GroupDetailScreen() {
                   <Text className={`mt-0.5 text-xs font-medium ${impact.className}`}>{impact.label}</Text>
                 ) : null}
               </View>
-            </View>
+            </Pressable>
           );
         }}
         ListEmptyComponent={
@@ -170,10 +219,15 @@ export function GroupDetailScreen() {
       />
 
       <Pressable
-        onPress={() => navigation.navigate('AddExpense', { groupId })}
+        onPress={() => showAddExpenseOptions(handleScanReceipt, () => navigation.navigate('AddExpense', { groupId }))}
+        disabled={scanning}
         className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
       >
-        <MaterialCommunityIcons name="plus" size={28} color="white" />
+        {scanning ? (
+          <ActivityIndicator size="small" color="white" />
+        ) : (
+          <MaterialCommunityIcons name="plus" size={28} color="white" />
+        )}
       </Pressable>
     </SafeAreaView>
   );

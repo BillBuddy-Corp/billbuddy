@@ -43,38 +43,41 @@ export function ItemizedSplitScreen() {
   });
   const unassignedCount = items.filter((item) => item.assignedUserIds.length === 0).length;
 
-  const hasReceiptDetails =
-    merchant || transactionDate || subtotal != null || otherDiscount != null || voucherAmount != null;
-
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {hasReceiptDetails ? (
-        <View className="border-b border-divider px-5 py-3">
-          {merchant ? <Text className="text-sm font-medium text-ink">{merchant}</Text> : null}
-          {transactionDate ? <Text className="mt-0.5 text-xs text-subtle">{transactionDate}</Text> : null}
-          {subtotal != null ? (
-            <Text className="mt-1 text-xs text-subtle">Subtotal (before discount) {subtotal.toFixed(2)}</Text>
-          ) : null}
-          {otherDiscount != null ? (
-            <Text className="text-xs text-subtle">Receipt discount −{otherDiscount.toFixed(2)}</Text>
-          ) : null}
-          {voucherAmount != null ? (
-            <Text className="text-xs text-subtle">Voucher −{voucherAmount.toFixed(2)}</Text>
-          ) : null}
-          {discountsNeedReview ? (
-            <Text className="mt-1 text-xs text-yellow-500">
-              Discounts on this receipt didn't fully reconcile -- item prices are still correct, but double-check
-              the total.
-            </Text>
-          ) : null}
+      <View className="border-b border-divider px-5 py-3">
+        {merchant ? <Text className="text-sm font-medium text-ink">{merchant}</Text> : null}
+        {transactionDate ? <Text className="mt-0.5 text-xs text-subtle">{transactionDate}</Text> : null}
+        <View className="mt-1.5 flex-row items-center justify-between">
+          <Text className="text-sm font-semibold text-ink">Total paid</Text>
+          <Text className="text-sm font-semibold text-ink">
+            {(Number(store.amount) || 0).toFixed(2)} {store.currency}
+          </Text>
         </View>
-      ) : null}
+        {subtotal != null ? (
+          <Text className="mt-1 text-xs text-subtle">Subtotal (before discount) {subtotal.toFixed(2)}</Text>
+        ) : null}
+        {otherDiscount != null ? (
+          <Text className="text-xs text-subtle">Receipt discount −{otherDiscount.toFixed(2)}</Text>
+        ) : null}
+        {voucherAmount != null ? (
+          <Text className="text-xs text-subtle">Voucher −{voucherAmount.toFixed(2)}</Text>
+        ) : null}
+        {discountsNeedReview ? (
+          <Text className="mt-1 text-xs text-yellow-500">
+            Discounts on this receipt didn't fully reconcile -- item prices are still correct, but double-check
+            the total.
+          </Text>
+        ) : null}
+      </View>
 
       <FlatList
         data={items}
         keyExtractor={(_, index) => String(index)}
         contentContainerStyle={{ paddingBottom: 16 }}
-        renderItem={({ item, index }) => (
+        renderItem={({ item, index }) => {
+          const itemTotals = perPersonAmounts(item);
+          return (
           <View className="border-b border-divider px-5 py-3">
             <View className="flex-row items-center justify-between">
               <View className="flex-1 flex-row items-baseline pr-3">
@@ -88,6 +91,7 @@ export function ItemizedSplitScreen() {
             <View className="mt-2">
               {participants.map((p) => {
                 const assigned = item.assignedUserIds.includes(p.userId);
+                const owed = itemTotals.get(p.userId);
                 return (
                   <View key={p.userId} className="mt-1.5 flex-row items-center">
                     <Pressable
@@ -118,6 +122,9 @@ export function ItemizedSplitScreen() {
                           keyboardType="decimal-pad"
                           className="w-12 rounded-lg border border-divider bg-surface px-2 py-1 text-center text-sm text-ink"
                         />
+                        <Text className="ml-2.5 w-14 text-right text-sm font-medium text-ink">
+                          {owed != null ? owed.toFixed(2) : '--'}
+                        </Text>
                       </View>
                     ) : null}
                   </View>
@@ -128,7 +135,8 @@ export function ItemizedSplitScreen() {
               <Text className="mt-1.5 text-xs text-red-400">Assign at least one person</Text>
             ) : null}
           </View>
-        )}
+          );
+        }}
         ListHeaderComponent={
           <Text className="px-5 pb-1 pt-4 text-xs font-medium uppercase text-subtle">
             Tick who had each item -- adjust "share" if it wasn't split evenly

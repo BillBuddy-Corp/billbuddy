@@ -1,12 +1,15 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
+import { Expense } from '../api/expenses';
 import { AddExpenseScreen } from '../screens/AddExpenseScreen';
 import { AddFriendScreen } from '../screens/AddFriendScreen';
 import { AdjustSplitScreen } from '../screens/AdjustSplitScreen';
 import { BalancesScreen } from '../screens/BalancesScreen';
 import { CreateGroupScreen } from '../screens/CreateGroupScreen';
+import { CurrencyPickerScreen } from '../screens/CurrencyPickerScreen';
 import { EditGroupScreen } from '../screens/EditGroupScreen';
+import { ExpenseDetailScreen } from '../screens/ExpenseDetailScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { FriendDetailScreen } from '../screens/FriendDetailScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
@@ -43,8 +46,18 @@ export type RootStackParamList = {
   AddFriend: undefined;
   GroupSettings: { groupId: number };
   Invites: { groupId: number; isAdmin: boolean };
-  AddExpense: { groupId: number } | { friendUserId: number };
+  AddExpense: ({ groupId: number } | { friendUserId: number }) & {
+    // Set by the "Scan a receipt" flow once the picker+OCR has already
+    // populated addExpenseFormStore -- tells the screen to skip its own
+    // group/friend fetch (which would call store.init() and wipe the
+    // scanned items) and just use the header text passed here.
+    skipInit?: boolean;
+    headerLabel?: string;
+    headerColorSeed?: number;
+  };
+  ExpenseDetail: { expense: Expense };
   WhoPaid: undefined;
+  CurrencyPicker: undefined;
   AdjustSplit: undefined;
   ItemizedSplit:
     | {
@@ -129,9 +142,19 @@ export function RootNavigator() {
             options={{ ...darkHeaderOptions, title: 'Add expense', presentation: 'modal' }}
           />
           <Stack.Screen
+            name="ExpenseDetail"
+            component={ExpenseDetailScreen}
+            options={{ ...darkHeaderOptions, title: 'Expense' }}
+          />
+          <Stack.Screen
             name="WhoPaid"
             component={WhoPaidScreen}
             options={{ ...darkHeaderOptions, title: 'Who paid?' }}
+          />
+          <Stack.Screen
+            name="CurrencyPicker"
+            component={CurrencyPickerScreen}
+            options={{ ...darkHeaderOptions, title: 'Currency' }}
           />
           <Stack.Screen
             name="AdjustSplit"

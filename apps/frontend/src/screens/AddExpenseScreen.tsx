@@ -1,10 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -16,17 +14,15 @@ import {
   View,
 } from 'react-native';
 
-import { scanReceipt } from '../api/billScanner';
 import { createExpense, CreateExpenseRequest, getSuggestedExchangeRate } from '../api/expenses';
-import { Friend, listFriends } from '../api/friends';
-import { uploadFile } from '../api/files';
-import { getGroup, listMembers } from '../api/groups';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { displayName, useAddExpenseFormStore } from '../store/addExpenseFormStore';
 import { useAuthStore } from '../store/authStore';
 import { avatarColor } from '../utils/avatarColor';
 import { getErrorMessage } from '../utils/errors';
 import { categoryStyle } from '../utils/expenseCategory';
+import { loadExpenseTargetContext } from '../utils/expenseTargetContext';
+import { pickAndUploadReceipt } from '../utils/receiptScan';
 
 type Route = RouteProp<RootStackParamList, 'AddExpense'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'AddExpense'>;
@@ -53,7 +49,6 @@ export function AddExpenseScreen() {
   const [headerLabel, setHeaderLabel] = useState('');
   const [headerColorSeed, setHeaderColorSeed] = useState(0);
   const [currencyEditable, setCurrencyEditable] = useState(false);
-  const [description, setDescription] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,39 +56,30 @@ export function AddExpenseScreen() {
   const [rateError, setRateError] = useState('');
   const [rateAsOf, setRateAsOf] = useState('');
   const rateFetchToken = useRef(0);
-  const [scanning, setScanning] = useState(false);
+  const [attaching, setAttaching] = useState(false);
 
   useEffect(() => {
     if (!currentUser || initialized.current) return;
     initialized.current = true;
 
+    // Arriving from the "Scan a receipt" flow: the picker/OCR already ran
+    // and populated the store (including items and receiptFileId) before
+    // this screen was even pushed -- re-running init here would wipe all
+    // of that via store.init()'s reset. Just use the header text passed
+    // along instead of re-fetching the group/friend.
+    if ('skipInit' in target && target.skipInit) {
+      setHeaderLabel(target.headerLabel ?? '');
+      setHeaderColorSeed(target.headerColorSeed ?? 0);
+      setCurrencyEditable(true);
+      return;
+    }
+
     (async () => {
-      if ('groupId' in target) {
-        const [group, members] = await Promise.all([getGroup(target.groupId), listMembers(target.groupId)]);
-        setHeaderLabel(`With ${group.name}`);
-        setHeaderColorSeed(target.groupId);
-        setCurrencyEditable(true);
-        store.init(
-          members.map((m) => ({ userId: m.userId, fullName: m.fullName })),
-          group.defaultCurrency,
-          currentUser.userId,
-          group.defaultCurrency
-        );
-      } else {
-        const friends = await listFriends();
-        const friend = friends.find((f: Friend) => f.userId === target.friendUserId);
-        setHeaderLabel(`With you and ${friend?.fullName ?? 'them'}`);
-        setHeaderColorSeed(target.friendUserId);
-        setCurrencyEditable(true);
-        store.init(
-          [
-            { userId: currentUser.userId, fullName: currentUser.fullName },
-            { userId: target.friendUserId, fullName: friend?.fullName ?? 'Friend' },
-          ],
-          'INR',
-          currentUser.userId
-        );
-      }
+      const context = await loadExpenseTargetContext(target, currentUser);
+      setHeaderLabel(context.headerLabel);
+      setHeaderColorSeed(context.headerColorSeed);
+      setCurrencyEditable(true);
+      store.init(context.participants, context.currency, currentUser.userId, context.groupDefaultCurrency);
     })();
   }, [currentUser, target, store]);
 
@@ -131,81 +117,35 @@ export function AddExpenseScreen() {
 
   const payer = store.participants.find((p) => p.userId === store.paidByUserId);
 
-  const runScan = async (uri: string, fileName: string | null | undefined, mimeType: string | null | undefined) => {
-    setScanning(true);
-    setError('');
+  // The icon beside Description is attach-only -- pick + upload a photo to
+  // keep with this expense for the record, viewable later from the expense
+  // detail screen. No OCR here; that's the separate "Scan a receipt" flow
+  // reachable from the group/friend page's own + button.
+  const attachNewReceipt = async () => {
+    setAttaching(true);
     try {
-      const uploaded = await uploadFile(uri, fileName ?? 'receipt.jpg', mimeType ?? 'image/jpeg');
-      const scan = await scanReceipt(uploaded.id);
-      if (scan.needsReview || scan.amount === null || scan.items.length === 0) {
-        Alert.alert(
-          "Couldn't read this receipt reliably",
-          'Add the expense manually instead, or try a clearer photo.'
-        );
-        return;
-      }
-      if (scan.merchant && !description.trim()) setDescription(scan.merchant);
-      store.setAmount(String(scan.amount));
-      if (scan.currency) store.setCurrency(scan.currency);
-      store.setItemsFromScan(
-        scan.items.map((item) => ({ name: item.name, amount: item.amount, quantity: item.quantity }))
-      );
-      store.setSplitType('ITEMIZED');
-      store.setReceiptFileId(uploaded.id);
-      navigation.navigate('ItemizedSplit', {
-        merchant: scan.merchant ?? undefined,
-        transactionDate: scan.transactionDate ?? undefined,
-        subtotal: scan.subtotal ?? undefined,
-        otherDiscount: scan.otherDiscount ?? undefined,
-        voucherAmount: scan.voucherAmount ?? undefined,
-        discountsNeedReview: scan.discountsNeedReview,
-      });
-    } catch (err) {
-      Alert.alert('Could not scan receipt', getErrorMessage(err));
+      const result = await pickAndUploadReceipt();
+      if (result) store.setReceiptFileId(result.fileId);
     } finally {
-      setScanning(false);
+      setAttaching(false);
     }
   };
 
-  const pickAndScan = async (source: 'camera' | 'library') => {
-    const permission =
-      source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', `Allow access to your ${source === 'camera' ? 'camera' : 'photos'} to scan a receipt.`);
-      return;
-    }
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (result.canceled || result.assets.length === 0) return;
-    const asset = result.assets[0];
-    await runScan(asset.uri, asset.fileName, asset.mimeType);
-  };
-
-  const handleScanReceipt = () => {
-    if (scanning) return;
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Take Photo', 'Choose from Library', 'Cancel'], cancelButtonIndex: 2 },
-        (index) => {
-          if (index === 0) pickAndScan('camera');
-          if (index === 1) pickAndScan('library');
-        }
-      );
-    } else {
-      Alert.alert('Scan a receipt', undefined, [
-        { text: 'Take Photo', onPress: () => pickAndScan('camera') },
-        { text: 'Choose from Library', onPress: () => pickAndScan('library') },
+  const handleReceiptIconPress = () => {
+    if (attaching) return;
+    if (store.receiptFileId) {
+      Alert.alert('Receipt attached', undefined, [
+        { text: 'Replace photo', onPress: () => void attachNewReceipt() },
+        { text: 'Remove', style: 'destructive', onPress: () => store.setReceiptFileId(null) },
         { text: 'Cancel', style: 'cancel' },
       ]);
+      return;
     }
+    void attachNewReceipt();
   };
 
   const handleCreate = async () => {
-    if (!description.trim()) {
+    if (!store.description.trim()) {
       setError('Enter a description');
       return;
     }
@@ -241,7 +181,7 @@ export function AddExpenseScreen() {
     }
 
     const base = {
-      description: description.trim(),
+      description: store.description.trim(),
       amount: parsedAmount,
       currency: store.currency,
       exchangeRate,
@@ -318,31 +258,35 @@ export function AddExpenseScreen() {
         </View>
 
         <View className="mb-5 flex-row items-center border-b border-divider pb-2">
-          <Pressable onPress={handleScanReceipt} disabled={scanning} hitSlop={8}>
-            {scanning ? (
+          <Pressable onPress={handleReceiptIconPress} disabled={attaching} hitSlop={8}>
+            {attaching ? (
               <ActivityIndicator size="small" color="#2F6FED" />
             ) : (
-              <MaterialCommunityIcons name="receipt" size={20} color="#2F6FED" />
+              <MaterialCommunityIcons
+                name="receipt"
+                size={20}
+                color={store.receiptFileId ? '#22C55E' : '#2F6FED'}
+              />
             )}
           </Pressable>
           <TextInput
             placeholder="Description"
             placeholderTextColor="#9CA3AF"
-            value={description}
-            onChangeText={setDescription}
+            value={store.description}
+            onChangeText={store.setDescription}
             className="ml-3 flex-1 text-base text-ink"
           />
         </View>
 
         <View className="mb-5 flex-row items-center border-b border-divider pb-2">
           {currencyEditable ? (
-            <TextInput
-              value={store.currency}
-              onChangeText={store.setCurrency}
-              autoCapitalize="characters"
-              maxLength={3}
-              className="w-14 text-lg font-medium text-subtle"
-            />
+            <Pressable
+              onPress={() => navigation.navigate('CurrencyPicker')}
+              className="flex-row items-center"
+            >
+              <Text className="text-lg font-medium text-subtle">{store.currency}</Text>
+              <MaterialCommunityIcons name="chevron-down" size={16} color="#9CA3AF" style={{ marginLeft: 2 }} />
+            </Pressable>
           ) : (
             <Text className="text-lg font-medium text-subtle">{store.currency}</Text>
           )}
