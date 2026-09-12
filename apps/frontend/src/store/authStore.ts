@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import { getProfile } from '../api/users';
-import { setAccessToken } from '../api/tokenHolder';
+import { setAccessToken, setOnSessionExpired, setOnTokensRefreshed, setRefreshToken } from '../api/tokenHolder';
 
 const ACCESS_TOKEN_KEY = 'billbuddy.accessToken';
 const REFRESH_TOKEN_KEY = 'billbuddy.refreshToken';
@@ -43,9 +43,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isHydrated: false,
 
   setSession: async ({ user, accessToken, refreshToken }) => {
-    // Set the token first so an authenticated request (the profile fetch
+    // Set the tokens first so an authenticated request (the profile fetch
     // below) can actually go out before the store's own state updates.
     setAccessToken(accessToken);
+    setRefreshToken(refreshToken);
 
     let emailVerified = false;
     try {
@@ -78,6 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   clearSession: async () => {
     setAccessToken(null);
+    setRefreshToken(null);
     await Promise.all([
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
       SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
@@ -93,6 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       SecureStore.getItemAsync(USER_KEY),
     ]);
     setAccessToken(accessToken);
+    setRefreshToken(refreshToken);
     const user = userJson ? (JSON.parse(userJson) as AuthUser) : null;
     set({
       user,
@@ -102,3 +105,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 }));
+
+// Registered once at module load so api/client.ts's response interceptor
+// can hand back a freshly-rotated token pair (or signal that the refresh
+// token itself is dead) without importing this store directly -- see
+// tokenHolder.ts for why that matters.
+setOnTokensRefreshed(async (accessToken, refreshToken) => {
+  await Promise.all([
+    SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
+    SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
+  ]);
+  useAuthStore.setState({ accessToken, refreshToken });
+});
+
+setOnSessionExpired(() => {
+  useAuthStore.getState().clearSession();
+});
