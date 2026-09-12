@@ -79,7 +79,7 @@ export function ItemizedSplitScreen() {
             <View className="flex-row items-center justify-between">
               <View className="flex-1 flex-row items-baseline pr-3">
                 <Text className="text-sm font-medium text-ink">{item.name}</Text>
-                {item.quantity && item.quantity > 1 ? (
+                {item.quantity != null ? (
                   <Text className="ml-1.5 text-xs text-subtle">×{item.quantity}</Text>
                 ) : null}
               </View>
