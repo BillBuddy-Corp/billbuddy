@@ -53,7 +53,7 @@ claude:
   workspace-id:
 
 app:
-  join-link-base-url: http://localhost:3000/invites/join
+  join-link-base-url: billbuddy://join-group
   reset-password-base-url: billbuddy://reset-password
   verify-email-base-url: billbuddy://verify-email
   email-change-base-url: http://localhost:3000/auth/confirm-email-change

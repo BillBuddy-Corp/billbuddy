@@ -185,7 +185,7 @@ Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT
 ### `POST /groups/{groupId}/invites/link/generate` — Admin only
 Creates a new shareable join link, invalidating any prior one for the group. Never expires.
 
-**Response** `201 Created` — a `GroupInviteResponse` with `type: "LINK"` and `token` populated (see the list example above).
+**Response** `201 Created` — a `GroupInviteResponse` with `type: "LINK"` and `token` populated (see the list example above). This is the raw token only, not a full link — the client builds the shareable link itself as a deep link (`billbuddy://join-group?token=...`), the same scheme an email invite's link uses under the hood.
 
 Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, `403 NOT_GROUP_ADMIN` if they're a member but not an Admin, or `404 GROUP_NOT_FOUND` if the group doesn't exist.
 
@@ -201,7 +201,7 @@ Fails with `403 NOT_GROUP_MEMBER` if the caller isn't an active member, or `403 
 ---
 
 ### `POST /invites/join`
-Joins a group using either an email-invite or shareable-link token — same endpoint handles both.
+Joins a group using either an email-invite or shareable-link token — same endpoint handles both. An email invite's link is a deep link (`billbuddy://join-group?token=...`); tapping it opens the app directly to a screen that reads the token and calls this endpoint, same pattern as the reset-password and verify-email links (see `auth.md`).
 
 **Request**
 ```json
