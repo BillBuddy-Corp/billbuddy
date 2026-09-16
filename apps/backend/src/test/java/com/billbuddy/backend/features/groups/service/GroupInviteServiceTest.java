@@ -354,11 +354,13 @@ class GroupInviteServiceTest {
     @Test
     void joinViaInvite_throwsGroupNotFound_whenGroupSoftDeleted() {
         User admin = buildUser(1L, "admin@example.com");
+        User joiner = buildUser(2L, "joiner@example.com");
         Group group = buildGroup(10L, admin);
         group.softDelete();
         GroupInvite linkInvite = GroupInvite.createLinkInvite(group, "raw-link-token", admin);
 
         when(groupInviteRepository.findByToken("raw-link-token")).thenReturn(Optional.of(linkInvite));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(joiner));
 
         assertThatThrownBy(() -> groupInviteService.joinViaInvite(2L, "raw-link-token"))
                 .isInstanceOf(GroupNotFoundException.class);
